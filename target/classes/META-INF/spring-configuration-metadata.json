@@ -1,0 +1,304 @@
+{
+  "hints": [],
+  "groups": [
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "",
+      "type": "com.capitalone.dashboard.settings.ApiSettings"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth",
+      "type": "com.capitalone.dashboard.auth.AuthProperties"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.model.monitor.MonitorProxySettings",
+      "name": "monitor.proxy",
+      "type": "com.capitalone.dashboard.model.monitor.MonitorProxySettings"
+    }
+  ],
+  "properties": [
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.ad-domain",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.ad-root-dn",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.ad-svc-root-dn",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.ad-url",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.ad-user-root-dn",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.authentication-providers",
+      "type": "java.util.List<com.capitalone.dashboard.model.AuthType>"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.expiration-time",
+      "type": "java.lang.Long"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.ldap-bind-pass",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.ldap-bind-user",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "defaultValue": false,
+      "name": "auth.ldap-disable-group-authorization",
+      "type": "java.lang.Boolean"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.ldap-manager-dn",
+      "description": "Username (DN) of the \"manager\" user identity (i.e. \"uid=admin,ou=system\") which will be used to authenticate to a (non-embedded) LDAP server. If omitted, anonymous access will be used.",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.ldap-manager-password",
+      "description": "The password for the manager DN. This is required if the ldapManagerDn is specified.",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.ldap-server-url",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.ldap-user-dn-pattern",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.ldap-user-search-filter",
+      "description": "The LDAP filter used to search for users (optional). For example \"(&(objectClass=user)(sAMAccountName={0}))\". The substituted parameter is the user's login name.",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.open-id-client-id",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.open-id-client-secret",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.open-id-grant-type",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.open-id-redirect-uri",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.open-id-scope",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.open-id-server-host",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.secret",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.user-display-name",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.user-eid",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.user-email",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.user-first-name",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.user-last-name",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.auth.AuthProperties",
+      "name": "auth.user-middel-initials",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "build-collector-name",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "capture-pattern",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "defaultValue": false,
+      "name": "cors-enabled",
+      "type": "java.lang.Boolean"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "cors-whitelist",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "data-sync-settings",
+      "type": "com.capitalone.dashboard.webhook.settings.DataSyncSettings"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "defaultValue": false,
+      "name": "encrypt-remote-create-payload",
+      "type": "java.lang.Boolean"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "functional",
+      "type": "java.util.Map<java.lang.String,java.lang.String>"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "git-tool-name",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "github-sync-settings",
+      "type": "com.capitalone.dashboard.webhook.settings.GithubSyncSettings"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "defaultValue": "",
+      "name": "hygieia-ui-url",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "ignore-api-users",
+      "type": "java.util.List<java.lang.String>"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "ignore-body-end-points",
+      "type": "java.util.List<java.lang.String>"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "ignore-end-points",
+      "type": "java.util.List<java.lang.String>"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "key",
+      "description": "TODO The property name 'key' is too vague. This key is used only for encryption. Would suggest to rename it to encryptionKey to be specific. For now (for backwards compatibility) keeping it as it was.",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "defaultValue": false,
+      "name": "log-request",
+      "type": "java.lang.Boolean"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "defaultValue": false,
+      "name": "lookup-dashboard-for-build-data-create",
+      "type": "java.lang.Boolean"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.model.monitor.MonitorProxySettings",
+      "name": "monitor.proxy.host",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.model.monitor.MonitorProxySettings",
+      "name": "monitor.proxy.password",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.model.monitor.MonitorProxySettings",
+      "defaultValue": 0,
+      "name": "monitor.proxy.port",
+      "type": "java.lang.Integer"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.model.monitor.MonitorProxySettings",
+      "name": "monitor.proxy.type",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.model.monitor.MonitorProxySettings",
+      "name": "monitor.proxy.username",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "defaultValue": 0,
+      "name": "page-size",
+      "type": "java.lang.Integer"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "performance",
+      "type": "java.util.Map<java.lang.String,java.lang.String>"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "sonar-data-sync-settings",
+      "type": "com.capitalone.dashboard.webhook.settings.SonarDataSyncSettings"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "unit",
+      "type": "java.lang.String"
+    },
+    {
+      "sourceType": "com.capitalone.dashboard.settings.ApiSettings",
+      "name": "web-hook",
+      "type": "com.capitalone.dashboard.webhook.settings.WebHookSettings"
+    }
+  ]
+}

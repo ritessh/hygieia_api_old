@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ApiSettings.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.capitalone.dashboard:api</a> &gt; <a href="index.source.html" class="el_package">com.capitalone.dashboard.settings</a> &gt; <span class="el_source">ApiSettings.java</span></div><h1>ApiSettings.java</h1><pre class="source lang-java linenums">package com.capitalone.dashboard.settings;
+
+import com.capitalone.dashboard.webhook.settings.DataSyncSettings;
+import com.capitalone.dashboard.webhook.settings.GithubSyncSettings;
+import com.capitalone.dashboard.webhook.settings.SonarDataSyncSettings;
+import com.capitalone.dashboard.webhook.settings.WebHookSettings;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@Component
+@ConfigurationProperties
+<span class="fc" id="L20">public class ApiSettings {</span>
+    /**
+     * TODO The property name 'key' is too vague. This key is used only for encryption. Would suggest to rename it to
+     * encryptionKey to be specific. For now (for backwards compatibility) keeping it as it was.
+     */
+    private String key;
+    @Value(&quot;${corsEnabled:false}&quot;)
+    private boolean corsEnabled;
+    private String corsWhitelist;
+    private boolean logRequest;
+    @Value(&quot;${pageSize:10}&quot;)
+    private int pageSize;
+    @Value(&quot;${lookupDashboardForBuildDataCreate:false}&quot;)
+    private boolean lookupDashboardForBuildDataCreate;
+
+    @Value(&quot;${gitToolName:Github}&quot;)
+    private String gitToolName;
+
+    @Value(&quot;${buildCollectorName:Hudson}&quot;)
+    private String buildCollectorName;
+
+    private WebHookSettings webHook;
+
+    private String capturePattern;
+
+<span class="fc" id="L45">    private List&lt;String&gt; ignoreEndPoints = new ArrayList();</span>
+<span class="fc" id="L46">    private List&lt;String&gt; ignoreApiUsers = new ArrayList();</span>
+<span class="fc" id="L47">    private List&lt;String&gt; ignoreBodyEndPoints = new ArrayList();</span>
+
+<span class="fc" id="L49">    private GithubSyncSettings githubSyncSettings = new GithubSyncSettings();</span>
+<span class="fc" id="L50">    private SonarDataSyncSettings sonarDataSyncSettings = new SonarDataSyncSettings();</span>
+<span class="fc" id="L51">    private DataSyncSettings dataSyncSettings = new DataSyncSettings();</span>
+
+    private Map&lt;String,String&gt; functional;
+    private Map&lt;String,String&gt; performance;
+    private String unit;
+
+    @Value(&quot;${encryptRemoteCreatePayload:true}&quot;)
+    private boolean encryptRemoteCreatePayload;
+
+<span class="fc" id="L60">    private String hygieia_ui_url=&quot;&quot;;</span>
+
+    public Map&lt;String, String&gt; getFunctional() {
+<span class="nc" id="L63">        return functional;</span>
+    }
+
+    public void setFunctional(Map&lt;String, String&gt; functional) {
+<span class="nc" id="L67">        this.functional = functional;</span>
+<span class="nc" id="L68">    }</span>
+
+    public Map&lt;String, String&gt; getPerformance() {
+<span class="nc" id="L71">        return performance;</span>
+    }
+
+    public void setPerformance(Map&lt;String, String&gt; performance) {
+<span class="nc" id="L75">        this.performance = performance;</span>
+<span class="nc" id="L76">    }</span>
+
+    public String getUnit() {
+<span class="nc" id="L79">        return unit;</span>
+    }
+
+    public void setUnit(String unit) {
+<span class="nc" id="L83">        this.unit = unit;</span>
+<span class="nc" id="L84">    }</span>
+
+    public WebHookSettings getWebHook() {
+<span class="fc" id="L87">        return webHook;</span>
+    }
+
+    public void setWebHook(WebHookSettings webHook) {
+<span class="nc" id="L91">        this.webHook = webHook;</span>
+<span class="nc" id="L92">    }</span>
+
+    public String getKey() {
+<span class="nc" id="L95">        return key;</span>
+    }
+
+    public void setKey(final String key) {
+<span class="nc" id="L99">        this.key = key;</span>
+<span class="nc" id="L100">    }</span>
+
+    public boolean isCorsEnabled() {
+<span class="nc" id="L103">        return corsEnabled;</span>
+    }
+
+    public void setCorsEnabled(boolean corsEnabled) {
+<span class="nc" id="L107">        this.corsEnabled = corsEnabled;</span>
+<span class="nc" id="L108">    }</span>
+
+    public String getCorsWhitelist() {
+<span class="nc" id="L111">        return corsWhitelist;</span>
+    }
+
+    public void setCorsWhitelist(String corsWhitelist) {
+<span class="nc" id="L115">        this.corsWhitelist = corsWhitelist;</span>
+<span class="nc" id="L116">    }</span>
+
+    public boolean isLogRequest() {
+<span class="nc" id="L119">        return logRequest;</span>
+    }
+
+    public void setLogRequest(boolean logRequest) {
+<span class="nc" id="L123">        this.logRequest = logRequest;</span>
+<span class="nc" id="L124">    }</span>
+
+    public int getPageSize() {
+<span class="nc" id="L127">        return pageSize;</span>
+    }
+
+    public void setPageSize(int pageSize) {
+<span class="nc" id="L131">        this.pageSize = pageSize;</span>
+<span class="nc" id="L132">    }</span>
+
+<span class="nc" id="L134">    public boolean isLookupDashboardForBuildDataCreate() { return lookupDashboardForBuildDataCreate; }</span>
+
+    public void setLookupDashboardForBuildDataCreate(boolean lookupDashboardForBuildDataCreate) {
+<span class="nc" id="L137">        this.lookupDashboardForBuildDataCreate = lookupDashboardForBuildDataCreate;</span>
+<span class="nc" id="L138">    }</span>
+
+    public String getGitToolName() {
+<span class="nc" id="L141">        return gitToolName;</span>
+    }
+
+    public void setGitToolName(String gitToolName) {
+<span class="nc" id="L145">        this.gitToolName = gitToolName;</span>
+<span class="nc" id="L146">    }</span>
+
+    public String getCapturePattern() {
+<span class="nc" id="L149">        return capturePattern;</span>
+    }
+
+    public void setCapturePattern(String capturePattern) {
+<span class="nc" id="L153">        this.capturePattern = capturePattern;</span>
+<span class="nc" id="L154">    }</span>
+
+    public List&lt;String&gt; getIgnoreEndPoints() {
+<span class="nc" id="L157">        return ignoreEndPoints;</span>
+    }
+
+    public void setIgnoreEndPoints(List&lt;String&gt; ignoreEndPoints) {
+<span class="nc" id="L161">        this.ignoreEndPoints = ignoreEndPoints;</span>
+<span class="nc" id="L162">    }</span>
+
+<span class="nc" id="L164">    public List&lt;String&gt; getIgnoreApiUsers() { return ignoreApiUsers; }</span>
+
+<span class="nc" id="L166">    public void setIgnoreApiUsers(List&lt;String&gt; ignoreApiUsers) { this.ignoreApiUsers = ignoreApiUsers; }</span>
+
+<span class="nc" id="L168">    public List&lt;String&gt; getIgnoreBodyEndPoints() { return ignoreBodyEndPoints; }</span>
+
+<span class="nc" id="L170">    public void setIgnoreBodyEndPoints(List&lt;String&gt; ignoreBodyEndPoints) { this.ignoreBodyEndPoints = ignoreBodyEndPoints; }</span>
+
+<span class="nc bnc" id="L172" title="All 4 branches missed.">    public boolean checkIgnoreEndPoint(String endPointURI) { return !getIgnoreEndPoints().isEmpty() &amp;&amp; getIgnoreEndPoints().contains(endPointURI); }</span>
+
+    public boolean checkIgnoreApiUser(String apiUser) {
+<span class="nc bnc" id="L175" title="All 2 branches missed.">        if(CollectionUtils.isEmpty(this.ignoreApiUsers)) return false;</span>
+<span class="nc" id="L176">        List&lt;String&gt; matchingElements  = ignoreApiUsers.parallelStream().filter (str -&gt; StringUtils.equalsIgnoreCase(apiUser, str)).collect(Collectors.toList());</span>
+<span class="nc" id="L177">        return CollectionUtils.isNotEmpty(matchingElements);</span>
+    }
+
+    public boolean checkIgnoreBodyEndPoint(String endPointURI) {
+<span class="nc bnc" id="L181" title="All 2 branches missed.">        if(CollectionUtils.isEmpty(this.ignoreBodyEndPoints)) return false;</span>
+<span class="nc" id="L182">        List&lt;String&gt; matchingElements  = ignoreBodyEndPoints.parallelStream().filter (str -&gt; StringUtils.equalsIgnoreCase(endPointURI, str)).collect(Collectors.toList());</span>
+<span class="nc" id="L183">        return CollectionUtils.isNotEmpty(matchingElements);</span>
+    }
+
+    public GithubSyncSettings getGithubSyncSettings() {
+<span class="fc" id="L187">        return githubSyncSettings;</span>
+    }
+
+    public void setGithubSyncSettings(GithubSyncSettings githubSyncSettings) {
+<span class="fc" id="L191">        this.githubSyncSettings = githubSyncSettings;</span>
+<span class="fc" id="L192">    }</span>
+
+    public SonarDataSyncSettings getSonarDataSyncSettings() {
+<span class="nc" id="L195">        return sonarDataSyncSettings;</span>
+    }
+
+    public void setSonarDataSyncSettings(SonarDataSyncSettings sonarDataSyncSettings) {
+<span class="nc" id="L199">        this.sonarDataSyncSettings = sonarDataSyncSettings;</span>
+<span class="nc" id="L200">    }</span>
+
+    public DataSyncSettings getDataSyncSettings() {
+<span class="fc" id="L203">        return dataSyncSettings;</span>
+    }
+
+    public void setDataSyncSettings(DataSyncSettings dataSyncSettings) {
+<span class="fc" id="L207">        this.dataSyncSettings = dataSyncSettings;</span>
+<span class="fc" id="L208">    }</span>
+
+<span class="fc" id="L210">    public boolean isEncryptRemoteCreatePayload() { return encryptRemoteCreatePayload; }</span>
+
+<span class="nc" id="L212">    public void setEncryptRemoteCreatePayload(boolean encryptRemoteCreatePayload) { this.encryptRemoteCreatePayload = encryptRemoteCreatePayload; }</span>
+
+<span class="nc" id="L214">    public String getHygieia_ui_url() { return hygieia_ui_url; }</span>
+
+<span class="nc" id="L216">    public void setHygieia_ui_url(String hygieia_ui_url) { this.hygieia_ui_url = hygieia_ui_url; }</span>
+
+    public String getBuildCollectorName() {
+<span class="nc" id="L219">        return buildCollectorName;</span>
+    }
+
+    public void setBuildCollectorName(String buildCollectorName) {
+<span class="nc" id="L223">        this.buildCollectorName = buildCollectorName;</span>
+<span class="nc" id="L224">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.3.201901230119</span></div></body></html>

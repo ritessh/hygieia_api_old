@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OpenIdAuthenticationFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.capitalone.dashboard:api</a> &gt; <a href="index.source.html" class="el_package">com.capitalone.dashboard.auth.openid</a> &gt; <span class="el_source">OpenIdAuthenticationFilter.java</span></div><h1>OpenIdAuthenticationFilter.java</h1><pre class="source lang-java linenums">package com.capitalone.dashboard.auth.openid;
+
+import com.capitalone.dashboard.auth.AuthenticationResultHandler;
+import com.capitalone.dashboard.client.RestClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
+import org.springframework.stereotype.Component;
+
+import javax.servlet.FilterChain;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+@Component
+public class OpenIdAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
+
+    @Autowired
+    private OpenIdAuthenticationService openIdAuthenticationService;
+    protected RestClient restClient;
+
+    @Autowired
+    public OpenIdAuthenticationFilter(String defaultFilterProcessesUrl, AuthenticationManager authenticationManager,
+                                      AuthenticationResultHandler authenticationResultHandler, RestClient restClient) {
+<span class="fc" id="L28">        super(defaultFilterProcessesUrl);</span>
+<span class="fc" id="L29">        setAuthenticationManager(authenticationManager);</span>
+<span class="fc" id="L30">        setAuthenticationSuccessHandler(authenticationResultHandler);</span>
+<span class="fc" id="L31">        this.restClient = restClient;</span>
+<span class="fc" id="L32">    }</span>
+
+    @Override
+    public Authentication attemptAuthentication(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) throws AuthenticationException {
+<span class="nc" id="L36">        return openIdAuthenticationService.getAuthentication(httpServletRequest);</span>
+    }
+
+    @Override
+    protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
+                                            Authentication authResult) {
+<span class="nc" id="L42">        SecurityContextHolder.getContext().setAuthentication(authResult);</span>
+<span class="nc" id="L43">        openIdAuthenticationService.addAuthentication(response, authResult);</span>
+<span class="nc" id="L44">    }</span>
+
+    @Override
+    protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
+                                              AuthenticationException failed) throws IOException {
+<span class="nc" id="L49">        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, &quot;OpenId SSO Authentication Failed&quot;);</span>
+<span class="nc" id="L50">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.3.201901230119</span></div></body></html>

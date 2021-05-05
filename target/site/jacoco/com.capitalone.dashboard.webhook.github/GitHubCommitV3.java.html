@@ -1,0 +1,432 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GitHubCommitV3.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.capitalone.dashboard:api</a> &gt; <a href="index.source.html" class="el_package">com.capitalone.dashboard.webhook.github</a> &gt; <span class="el_source">GitHubCommitV3.java</span></div><h1>GitHubCommitV3.java</h1><pre class="source lang-java linenums">package com.capitalone.dashboard.webhook.github;
+
+import com.capitalone.dashboard.model.GitHubCollector;
+import com.capitalone.dashboard.repository.BaseCollectorRepository;
+import com.capitalone.dashboard.repository.CollectorItemRepository;
+import com.capitalone.dashboard.settings.ApiSettings;
+import com.capitalone.dashboard.client.RestClient;
+import com.capitalone.dashboard.model.webhook.github.GitHubParsed;
+import com.capitalone.dashboard.misc.HygieiaException;
+import com.capitalone.dashboard.model.CollectorItem;
+import com.capitalone.dashboard.model.Commit;
+import com.capitalone.dashboard.model.CommitType;
+import com.capitalone.dashboard.model.GitRequest;
+import com.capitalone.dashboard.repository.CommitRepository;
+import com.capitalone.dashboard.repository.GitRequestRepository;
+import com.capitalone.dashboard.service.CollectorService;
+import com.capitalone.dashboard.webhook.settings.GitHubWebHookSettings;
+import com.capitalone.dashboard.webhook.settings.WebHookSettings;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.joda.time.DateTime;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.ParseException;
+import org.springframework.http.ResponseEntity;
+
+import java.net.MalformedURLException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+public class GitHubCommitV3 extends GitHubV3 {
+<span class="fc" id="L39">    private static final Log LOG = LogFactory.getLog(GitHubCommitV3.class);</span>
+
+    private final CommitRepository commitRepository;
+    private final GitRequestRepository gitRequestRepository;
+    private final CollectorItemRepository collectorItemRepository;
+
+    public GitHubCommitV3(CollectorService collectorService,
+                          RestClient restClient,
+                          CommitRepository commitRepository,
+                          GitRequestRepository gitRequestRepository,
+                          CollectorItemRepository collectorItemRepository,
+                          ApiSettings apiSettings,
+                          BaseCollectorRepository&lt;GitHubCollector&gt; collectorRepository) {
+<span class="fc" id="L52">        super(collectorService, restClient, apiSettings, collectorItemRepository, collectorRepository);</span>
+
+<span class="fc" id="L54">        this.commitRepository = commitRepository;</span>
+<span class="fc" id="L55">        this.gitRequestRepository = gitRequestRepository;</span>
+<span class="fc" id="L56">        this.collectorItemRepository = collectorItemRepository;</span>
+<span class="fc" id="L57">    }</span>
+
+    @Override
+<span class="fc" id="L60">    public CollectorItemRepository getCollectorItemRepository() { return this.collectorItemRepository; }</span>
+
+    @Override
+    public String process(JSONObject jsonObject) throws MalformedURLException, HygieiaException, ParseException {
+<span class="fc" id="L64">        String result = &quot;Commits Processed Successfully&quot;;</span>
+
+<span class="fc" id="L66">        String branch = null;</span>
+<span class="fc" id="L67">        String repoUrl = null;</span>
+
+<span class="fc" id="L69">        Object commitsObj = jsonObject.get(&quot;commits&quot;);</span>
+<span class="pc bpc" id="L70" title="1 of 2 branches missed.">        if (!(commitsObj instanceof List)) {</span>
+<span class="nc" id="L71">            result = &quot;No Commits Data Found&quot;;</span>
+<span class="nc" id="L72">            return result;</span>
+        }
+
+<span class="fc" id="L75">        List&lt;Map&gt; commitsObjectList = (ArrayList&lt;Map&gt;) jsonObject.get(&quot;commits&quot;);</span>
+
+<span class="pc bpc" id="L77" title="1 of 2 branches missed.">        if (CollectionUtils.isEmpty(commitsObjectList)) {</span>
+<span class="nc" id="L78">            return &quot;Commits JSONArray Empty.&quot;;</span>
+        }
+
+<span class="fc" id="L81">        Object repoObject = jsonObject.get(&quot;repository&quot;);</span>
+<span class="pc bpc" id="L82" title="1 of 2 branches missed.">        if (!(repoObject instanceof Map)) {</span>
+<span class="nc" id="L83">            return &quot;No Repository Found&quot;;</span>
+        }
+
+<span class="fc" id="L86">        repoUrl = restClient.getString(repoObject, &quot;url&quot;);</span>
+<span class="fc" id="L87">        String ref = restClient.getString(jsonObject, &quot;ref&quot;);</span>
+<span class="pc bpc" id="L88" title="1 of 2 branches missed.">        if (!StringUtils.isEmpty(ref)) {</span>
+<span class="fc" id="L89">            branch = ref.replace(&quot;refs/heads/&quot;, &quot;&quot;);</span>
+        }
+
+<span class="fc bfc" id="L92" title="All 2 branches covered.">        if(!isRegistered(repoUrl, branch)) {</span>
+<span class="fc" id="L93">            return &quot;Repo: &lt;&quot; + repoUrl + &quot;&gt; Branch: &lt;&quot; + branch + &quot;&gt; is not registered in Hygieia&quot;;</span>
+        }
+
+        // Get github repository token
+<span class="fc" id="L97">        boolean isPrivate = restClient.getBoolean(repoObject, &quot;private&quot;);</span>
+<span class="fc" id="L98">        long start = System.currentTimeMillis();</span>
+<span class="fc" id="L99">        String repoToken = getRepositoryToken(repoUrl);</span>
+<span class="fc" id="L100">        long end = System.currentTimeMillis();</span>
+<span class="fc" id="L101">        LOG.debug(&quot;Time to make collectorItemRepository call to fetch repository token = &quot;+(end-start));</span>
+
+<span class="fc" id="L103">        GitHubWebHookSettings gitHubWebHookSettings = getGitHubWebHookSettings();</span>
+<span class="pc bpc" id="L104" title="1 of 2 branches missed.">        if(gitHubWebHookSettings == null) {</span>
+<span class="nc" id="L105">            throw new HygieiaException(&quot;Github Webhook properties not set on the properties file. &quot;, HygieiaException.INVALID_CONFIGURATION);</span>
+        }
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">        String gitHubWebHookToken =  isPrivate ? repoToken : gitHubWebHookSettings.getToken();</span>
+<span class="pc bpc" id="L108" title="1 of 2 branches missed.">        if (StringUtils.isEmpty(gitHubWebHookToken)) {</span>
+<span class="nc" id="L109">            throw new HygieiaException(&quot;Failed processing payload. Missing Github API token in Hygieia. &quot;, HygieiaException.INVALID_CONFIGURATION);</span>
+        }
+
+
+<span class="fc" id="L113">        Object senderObj = jsonObject.get(&quot;sender&quot;);</span>
+<span class="fc" id="L114">        List&lt;Commit&gt; commitList = getCommits(commitsObjectList, repoUrl, branch, gitHubWebHookToken, senderObj);</span>
+
+<span class="fc" id="L116">        updateCollectorItemLastUpdated(repoUrl, branch);</span>
+<span class="fc" id="L117">        commitRepository.save(commitList);</span>
+
+<span class="fc" id="L119">        return result;</span>
+    }
+
+    protected List&lt;Commit&gt; getCommits(List&lt;Map&gt; commitListPayload, String repoUrl,
+                                      String branch, String gitHubWebHookToken, Object senderObj) throws MalformedURLException, HygieiaException, ParseException {
+<span class="fc" id="L124">        List&lt;Commit&gt; commitsList = new ArrayList&lt;&gt;();</span>
+
+<span class="fc" id="L126">        GitHubParsed gitHubParsed = new GitHubParsed(repoUrl);</span>
+
+<span class="fc" id="L128">        GitHubWebHookSettings gitHubWebHookSettings = getGitHubWebHookSettings();</span>
+
+<span class="pc bpc" id="L130" title="1 of 2 branches missed.">        if (gitHubWebHookSettings == null) {</span>
+<span class="nc" id="L131">            LOG.info(&quot;Github Webhook properties not set on the properties file. Returning ...&quot;);</span>
+<span class="nc" id="L132">            return commitsList;</span>
+        }
+
+<span class="fc" id="L135">        List&lt;Pattern&gt; commitExclusionPatterns = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L136">        Optional.ofNullable(gitHubWebHookSettings.getNotBuiltCommits())</span>
+<span class="fc" id="L137">            .orElseGet(Collections::emptyList).stream()</span>
+<span class="pc" id="L138">            .map(regExStr -&gt; Pattern.compile(regExStr, Pattern.CASE_INSENSITIVE))</span>
+<span class="fc" id="L139">            .forEach(commitExclusionPatterns::add);</span>
+
+        // Get the earliest commit timestamp and use that as 'since' parameter
+<span class="fc" id="L142">        String since = restClient.getString(commitListPayload.get(0), &quot;timestamp&quot;);</span>
+
+<span class="fc" id="L144">        int numCommits = commitListPayload.size();</span>
+<span class="fc" id="L145">        List&lt;Map&gt; commitListNode = getCommitListNode(gitHubParsed, branch, since, numCommits, gitHubWebHookToken);</span>
+
+<span class="fc bfc" id="L147" title="All 2 branches covered.">        for (int i=0; i &lt; commitListNode.size(); i++) {</span>
+
+<span class="fc" id="L149">            Map node = (Map) commitListNode.get(i).get(&quot;node&quot;);</span>
+<span class="fc" id="L150">            Map payload = commitListPayload.get(i);</span>
+
+<span class="fc" id="L152">            Commit commit = new Commit();</span>
+
+<span class="fc" id="L154">            String commitId = restClient.getString(node, &quot;oid&quot;);</span>
+<span class="fc" id="L155">            commit.setScmRevisionNumber(commitId);</span>
+
+<span class="fc" id="L157">            Object authorObjectFromCommit = restClient.getAsObject(node,&quot;author&quot;);</span>
+<span class="fc" id="L158">            commit.setScmAuthor(restClient.getString(authorObjectFromCommit, &quot;name&quot;));</span>
+
+<span class="fc" id="L160">            String message = restClient.getString(node, &quot;message&quot;);</span>
+<span class="fc" id="L161">            commit.setScmCommitLog(message);</span>
+
+<span class="fc" id="L163">            commit.setTimestamp(System.currentTimeMillis());</span>
+<span class="fc" id="L164">            commit.setScmUrl(repoUrl);</span>
+<span class="fc" id="L165">            commit.setScmBranch(branch);</span>
+
+<span class="fc" id="L167">            List&lt;String&gt; parentShas = getParentShas(node);</span>
+<span class="fc" id="L168">            commit.setScmParentRevisionNumbers(parentShas);</span>
+<span class="fc" id="L169">            commit.setFirstEverCommit(CollectionUtils.isEmpty(parentShas));</span>
+<span class="fc" id="L170">            commit.setType(getCommitType(parentShas.size(), message, gitHubWebHookSettings, commitExclusionPatterns));</span>
+
+<span class="fc" id="L172">            Object authorObject = restClient.getAsObject(node, &quot;author&quot;);</span>
+<span class="fc" id="L173">            Object userObject = restClient.getAsObject(authorObject, &quot;user&quot;);</span>
+<span class="pc bpc" id="L174" title="1 of 2 branches missed.">            String authorLogin = (userObject == null) ? &quot;unknown&quot; : restClient.getString(userObject, &quot;login&quot;);</span>
+<span class="fc" id="L175">            commit.setScmAuthorLogin(authorLogin);</span>
+
+<span class="pc bpc" id="L177" title="2 of 4 branches missed.">            if (senderObj != null &amp;&amp; authorLogin.equalsIgnoreCase(restClient.getString(senderObj, &quot;login&quot;))) {</span>
+<span class="nc" id="L178">                String authorType = restClient.getString(senderObj, &quot;type&quot;);</span>
+<span class="nc bnc" id="L179" title="All 2 branches missed.">                if (!StringUtils.isEmpty(authorType)) {</span>
+<span class="nc" id="L180">                    commit.setScmAuthorType(authorType);</span>
+                }
+<span class="nc" id="L182">                String authorLDAPDN = restClient.getString(senderObj, &quot;ldap_dn&quot;);</span>
+<span class="nc bnc" id="L183" title="All 2 branches missed.">                if (!StringUtils.isEmpty(authorLDAPDN)) {</span>
+<span class="nc" id="L184">                    commit.setScmAuthorLDAPDN(authorLDAPDN);</span>
+                }
+<span class="nc" id="L186">            } else {</span>
+<span class="fc" id="L187">                long start = System.currentTimeMillis();</span>
+
+<span class="fc" id="L189">                String authorType = getAuthorType(repoUrl, authorLogin, gitHubWebHookToken);</span>
+<span class="pc bpc" id="L190" title="1 of 2 branches missed.">                if (!StringUtils.isEmpty(authorType)) {</span>
+<span class="nc" id="L191">                    commit.setScmAuthorType(authorType);</span>
+                }
+<span class="fc" id="L193">                String authorLDAPDN = getLDAPDN(repoUrl, authorLogin, gitHubWebHookToken);</span>
+<span class="pc bpc" id="L194" title="1 of 2 branches missed.">                if (!StringUtils.isEmpty(authorLDAPDN)) {</span>
+<span class="nc" id="L195">                    commit.setScmAuthorLDAPDN(authorLDAPDN);</span>
+                }
+
+<span class="fc" id="L198">                long end = System.currentTimeMillis();</span>
+<span class="fc" id="L199">                LOG.debug(&quot;Time to fetch LDAPDN = &quot;+(end-start));</span>
+            }
+
+            // Set the Committer details. This in the case of a merge commit is the user who merges the PR.
+            // In the case of a regular commit, it is usually set to a default &quot;name&quot;: &quot;GitHub Enterprise&quot;, and login is null
+<span class="fc" id="L204">            Object committerObject = restClient.getAsObject(node, &quot;committer&quot;);</span>
+<span class="fc" id="L205">            Object committerUserObject = restClient.getAsObject(committerObject, &quot;user&quot;);</span>
+<span class="pc bpc" id="L206" title="1 of 2 branches missed.">            String committerLogin = (committerUserObject == null) ? &quot;unknown&quot; : restClient.getString(committerUserObject, &quot;login&quot;);</span>
+<span class="fc" id="L207">            commit.setScmCommitterLogin(committerLogin);</span>
+
+<span class="fc" id="L209">            DateTime commitTimestamp = new DateTime(restClient.getString(committerObject, &quot;date&quot;));</span>
+<span class="fc" id="L210">            commit.setScmCommitTimestamp(commitTimestamp.getMillis());</span>
+
+            // added fields to capture files
+<span class="fc" id="L213">            int numberChanges = 0;</span>
+<span class="fc bfc" id="L214" title="All 2 branches covered.">            if (payload.get(&quot;added&quot;) instanceof List) {</span>
+<span class="fc" id="L215">                numberChanges += ((List) payload.get(&quot;added&quot;)).size();</span>
+<span class="fc" id="L216">                commit.setFilesAdded((List) payload.get(&quot;added&quot;));</span>
+            }
+<span class="pc bpc" id="L218" title="1 of 2 branches missed.">            if (payload.get(&quot;removed&quot;) instanceof List) {</span>
+<span class="fc" id="L219">                numberChanges += ((List) payload.get(&quot;removed&quot;)).size();</span>
+<span class="fc" id="L220">                commit.setFilesRemoved((List) payload.get(&quot;removed&quot;));</span>
+            }
+<span class="pc bpc" id="L222" title="1 of 2 branches missed.">            if (payload.get(&quot;modified&quot;) instanceof List) {</span>
+<span class="fc" id="L223">                numberChanges += ((List) payload.get(&quot;modified&quot;)).size();</span>
+<span class="fc" id="L224">                commit.setFilesModified((List) payload.get(&quot;modified&quot;));</span>
+            }
+
+<span class="fc" id="L227">            commit.setNumberOfChanges(numberChanges);</span>
+<span class="fc" id="L228">            setCommitPullNumber(commit);</span>
+<span class="fc" id="L229">            setCollectorItemId(commit);</span>
+<span class="fc" id="L230">            commitsList.add(commit);</span>
+        }
+
+        // For a merge commit for &quot;Rebase and Merge&quot;
+<span class="fc" id="L234">        setCommitPullNumbersForRebaseAndMergeCommit(commitsList);</span>
+
+<span class="fc" id="L236">        return commitsList;</span>
+    }
+
+    protected void setCommitPullNumbersForRebaseAndMergeCommit(List&lt;Commit&gt; commitsList) {
+<span class="fc" id="L240">        List&lt;Commit&gt; commitsWithPullNumber = Optional.ofNullable(commitsList)</span>
+<span class="fc" id="L241">                                            .orElseGet(Collections::emptyList).stream()</span>
+<span class="fc bfc" id="L242" title="All 2 branches covered.">                                            .filter(commit -&gt; !StringUtils.isEmpty(commit.getPullNumber()))</span>
+<span class="fc" id="L243">                                            .collect(Collectors.toList());</span>
+
+        // In case of Rebase and Merge, only the last commit in the list of commits on the &quot;merge commit&quot; json should have the PR number.
+        // This is because, there should be a corresponding PR in the DB whose &quot;merge_commit_sha&quot; matches the last commit in the list of commits
+<span class="fc bfc" id="L247" title="All 2 branches covered.">        if (checkCommitsWithPullNumber(commitsWithPullNumber)</span>
+<span class="pc bpc" id="L248" title="1 of 2 branches missed.">                &amp;&amp; checkCommitsListForSettingPullNumber(commitsList)) {</span>
+<span class="fc" id="L249">            Commit commitWithPR = commitsWithPullNumber.get(0);</span>
+<span class="fc" id="L250">            commitsList.forEach(commit -&gt; {commit.setPullNumber(commitWithPR.getPullNumber());});</span>
+        }
+<span class="fc" id="L252">    }</span>
+
+    private boolean checkCommitsWithPullNumber(List&lt;Commit&gt; commitsWithPullNumber) {
+<span class="fc bfc" id="L255" title="All 2 branches covered.">        return !CollectionUtils.isEmpty(commitsWithPullNumber)</span>
+<span class="pc bpc" id="L256" title="1 of 2 branches missed.">                &amp;&amp; (commitsWithPullNumber.size() == 1);</span>
+    }
+
+    private boolean checkCommitsListForSettingPullNumber(List&lt;Commit&gt; commitsList) {
+<span class="pc bpc" id="L260" title="2 of 4 branches missed.">        return !CollectionUtils.isEmpty(commitsList) &amp;&amp; (commitsList.size() &gt; 1);</span>
+    }
+
+    protected void setCommitPullNumber (Commit commit) {
+<span class="fc" id="L264">        GitRequest pr = gitRequestRepository.findByScmRevisionNumberOrScmMergeEventRevisionNumber(commit.getScmRevisionNumber());</span>
+<span class="fc bfc" id="L265" title="All 2 branches covered.">        if (pr == null) {</span>
+<span class="fc" id="L266">            pr = gitRequestRepository.findByCommitScmRevisionNumber(commit.getScmRevisionNumber());</span>
+        }
+<span class="fc bfc" id="L268" title="All 2 branches covered.">        if (pr != null) {</span>
+<span class="fc" id="L269">            commit.setPullNumber(pr.getNumber());</span>
+        }
+<span class="fc" id="L271">    }</span>
+
+    protected void setCollectorItemId (Commit commit) throws MalformedURLException, HygieiaException {
+<span class="fc" id="L274">        List&lt;Commit&gt; existingCommits</span>
+<span class="fc" id="L275">                = commitRepository.findAllByScmRevisionNumberAndScmUrlIgnoreCaseAndScmBranchIgnoreCaseOrderByTimestampAsc(commit.getScmRevisionNumber(), commit.getScmUrl(), commit.getScmBranch());</span>
+
+<span class="fc bfc" id="L277" title="All 2 branches covered.">        if (!CollectionUtils.isEmpty(existingCommits)) {</span>
+<span class="fc" id="L278">            commit.setId(existingCommits.get(0).getId());</span>
+<span class="fc" id="L279">            commit.setCollectorItemId(existingCommits.get(0).getCollectorItemId());</span>
+<span class="fc" id="L280">            CollectorItem collectorItem = collectorService.getCollectorItem(existingCommits.get(0).getCollectorItemId());</span>
+<span class="fc" id="L281">            collectorItem.setEnabled(true);</span>
+<span class="fc" id="L282">            collectorItem.setPushed(true);</span>
+<span class="fc" id="L283">            collectorItemRepository.save(collectorItem);</span>
+<span class="fc" id="L284">        } else {</span>
+<span class="fc" id="L285">            GitHubParsed gitHubParsed = new GitHubParsed(commit.getScmUrl());</span>
+<span class="fc" id="L286">            CollectorItem collectorItem = getCollectorItem(gitHubParsed.getUrl(), commit.getScmBranch());</span>
+<span class="fc" id="L287">            commit.setCollectorItemId(collectorItem.getId());</span>
+        }
+<span class="fc" id="L289">    }</span>
+
+    // List a single commit nodes using commit id
+    protected Object getCommitNode(GitHubParsed gitHubParsed, String commitId, String token) throws HygieiaException, ParseException {
+
+<span class="fc" id="L294">        JSONObject postBody = getQuery(gitHubParsed, commitId, GraphQLQuery.COMMITS_GRAPHQL);</span>
+
+<span class="fc" id="L296">        ResponseEntity&lt;String&gt; response = null;</span>
+<span class="fc" id="L297">        int retryCount = 0;</span>
+        while(true) {
+            try {
+<span class="fc" id="L300">                response = restClient.makeRestCallPost(gitHubParsed.getGraphQLUrl(), &quot;token&quot;, token, postBody);</span>
+<span class="fc" id="L301">                break;</span>
+<span class="nc" id="L302">            } catch (Exception e) {</span>
+<span class="nc" id="L303">                retryCount++;</span>
+<span class="nc bnc" id="L304" title="All 2 branches missed.">                if(retryCount &gt; apiSettings.getWebHook().getGitHub().getMaxRetries()) {</span>
+<span class="nc" id="L305">                    LOG.error(&quot;Unable to get COMMIT from &quot; + gitHubParsed.getUrl() + &quot; after &quot; + apiSettings.getWebHook().getGitHub().getMaxRetries() + &quot; tries!&quot;);</span>
+<span class="nc" id="L306">                    throw new HygieiaException(e);</span>
+                }
+<span class="nc" id="L308">            }</span>
+        }
+
+<span class="fc" id="L311">        JSONObject responseJsonObject = restClient.parseAsObject(response);</span>
+<span class="pc bpc" id="L312" title="1 of 2 branches missed.">        if (responseJsonObject == null) { return null; }</span>
+
+<span class="fc" id="L314">        checkForErrors(responseJsonObject);</span>
+
+<span class="fc" id="L316">        JSONObject commitData = (JSONObject) responseJsonObject.get(&quot;data&quot;);</span>
+<span class="pc bpc" id="L317" title="1 of 2 branches missed.">        if (commitData == null) { return null; }</span>
+
+<span class="fc" id="L319">        JSONObject repoData = (JSONObject) commitData.get(&quot;repository&quot;);</span>
+<span class="pc bpc" id="L320" title="1 of 2 branches missed.">        if (repoData == null) { return null; }</span>
+
+<span class="fc" id="L322">        return repoData.get(&quot;object&quot;);</span>
+    }
+
+    // Retrieve a list of commit nodes
+    protected List&lt;Map&gt; getCommitListNode(GitHubParsed gitHubParsed, String branch, String since, int fetchCount, String token) throws HygieiaException, ParseException {
+<span class="fc" id="L327">        JSONObject postBody = getQuery(gitHubParsed, branch, since, fetchCount, GraphQLQuery.COMMITS_LIST_GRAPHQL);</span>
+
+<span class="fc" id="L329">        ResponseEntity&lt;String&gt; response = null;</span>
+<span class="fc" id="L330">        int retryCount = 0;</span>
+        while(true) {
+            try {
+<span class="fc" id="L333">                response = restClient.makeRestCallPost(gitHubParsed.getGraphQLUrl(), &quot;token&quot;, token, postBody);</span>
+<span class="fc" id="L334">                break;</span>
+<span class="nc" id="L335">            } catch (Exception e) {</span>
+<span class="nc" id="L336">                retryCount++;</span>
+<span class="nc bnc" id="L337" title="All 2 branches missed.">                if(retryCount &gt; apiSettings.getWebHook().getGitHub().getMaxRetries()) {</span>
+<span class="nc" id="L338">                    LOG.error(&quot;Unable to get COMMIT from &quot; + gitHubParsed.getUrl() + &quot; after &quot; + apiSettings.getWebHook().getGitHub().getMaxRetries() + &quot; tries!&quot;);</span>
+<span class="nc" id="L339">                    throw new HygieiaException(e);</span>
+                }
+<span class="nc" id="L341">            }</span>
+        }
+
+<span class="fc" id="L344">        JSONObject responseJsonObject = restClient.parseAsObject(response);</span>
+<span class="pc bpc" id="L345" title="1 of 2 branches missed.">        if (responseJsonObject == null) { return null; }</span>
+
+<span class="fc" id="L347">        checkForErrors(responseJsonObject);</span>
+
+<span class="fc" id="L349">        JSONObject data = (JSONObject) responseJsonObject.get(&quot;data&quot;);</span>
+<span class="pc bpc" id="L350" title="1 of 2 branches missed.">        if (data == null) { return null; }</span>
+
+<span class="fc" id="L352">        JSONObject repo = (JSONObject) data.get(&quot;repository&quot;);</span>
+<span class="pc bpc" id="L353" title="1 of 2 branches missed.">        if (repo == null) { return null; }</span>
+
+<span class="fc" id="L355">        JSONObject ref = (JSONObject) repo.get(&quot;ref&quot;);</span>
+<span class="pc bpc" id="L356" title="1 of 2 branches missed.">        if (ref == null) { return null; }</span>
+
+<span class="fc" id="L358">        JSONObject target = (JSONObject) ref.get(&quot;target&quot;);</span>
+<span class="pc bpc" id="L359" title="1 of 2 branches missed.">        if (target == null) { return null; }</span>
+
+<span class="fc" id="L361">        JSONObject history = (JSONObject) target.get(&quot;history&quot;);</span>
+<span class="pc bpc" id="L362" title="1 of 2 branches missed.">        if (history == null) { return null; }</span>
+
+<span class="fc" id="L364">        return (ArrayList&lt;Map&gt;) history.get(&quot;edges&quot;);</span>
+    }
+
+    protected List&lt;String&gt; getParentShas(Object commit) {
+<span class="fc" id="L368">        Object parents = restClient.getAsObject(commit, &quot;parents&quot;);</span>
+<span class="fc" id="L369">        Object nodes = restClient.getAsObject(parents, &quot;nodes&quot;);</span>
+<span class="fc" id="L370">        List&lt;String&gt; parentShas = new ArrayList&lt;&gt;();</span>
+
+<span class="pc bpc" id="L372" title="1 of 2 branches missed.">        if (nodes instanceof JSONArray) {</span>
+<span class="fc" id="L373">            JSONArray parentNodes = (JSONArray) nodes;</span>
+<span class="fc bfc" id="L374" title="All 2 branches covered.">            for (Object parentObj : parentNodes) {</span>
+<span class="fc" id="L375">                parentShas.add(restClient.getString(parentObj, &quot;oid&quot;));</span>
+<span class="fc" id="L376">            }</span>
+        }
+
+<span class="fc" id="L379">        return parentShas;</span>
+    }
+
+    protected CommitType getCommitType(int parentSize, String commitMessage,
+                                       GitHubWebHookSettings gitHubWebHookSettings,
+                                       List&lt;Pattern&gt; commitExclusionPatterns) {
+<span class="fc bfc" id="L385" title="All 2 branches covered.">        if (parentSize &gt; 1) return CommitType.Merge;</span>
+<span class="fc bfc" id="L386" title="All 2 branches covered.">        if (CollectionUtils.isEmpty(gitHubWebHookSettings.getNotBuiltCommits())) return CommitType.New;</span>
+
+<span class="pc bpc" id="L388" title="1 of 2 branches missed.">        if (!CollectionUtils.isEmpty(commitExclusionPatterns)) {</span>
+<span class="pc bpc" id="L389" title="1 of 2 branches missed.">            for (Pattern pattern : commitExclusionPatterns) {</span>
+<span class="pc bpc" id="L390" title="1 of 2 branches missed.">                if (pattern.matcher(commitMessage).matches()) {</span>
+<span class="fc" id="L391">                    return CommitType.NotBuilt;</span>
+                }
+<span class="nc" id="L393">            }</span>
+        }
+<span class="nc" id="L395">        return CommitType.New;</span>
+    }
+
+    protected JSONObject getQuery (GitHubParsed gitHubParsed, String commitId, String queryString) {
+<span class="fc" id="L399">        JSONObject query = new JSONObject();</span>
+<span class="fc" id="L400">        JSONObject variableJSON = new JSONObject();</span>
+<span class="fc" id="L401">        variableJSON.put(&quot;owner&quot;, gitHubParsed.getOrgName());</span>
+<span class="fc" id="L402">        variableJSON.put(&quot;name&quot;, gitHubParsed.getRepoName());</span>
+<span class="fc" id="L403">        variableJSON.put(&quot;oid&quot;, commitId);</span>
+<span class="fc" id="L404">        query.put(&quot;query&quot;, queryString);</span>
+<span class="fc" id="L405">        query.put(&quot;variables&quot;, variableJSON.toString());</span>
+<span class="fc" id="L406">        return query;</span>
+    }
+
+    protected JSONObject getQuery (GitHubParsed gitHubParsed, String branch, String since, int fetchCount, String queryString) {
+<span class="fc" id="L410">        JSONObject query = new JSONObject();</span>
+<span class="fc" id="L411">        JSONObject variableJSON = new JSONObject();</span>
+<span class="fc" id="L412">        variableJSON.put(&quot;owner&quot;, gitHubParsed.getOrgName());</span>
+<span class="fc" id="L413">        variableJSON.put(&quot;name&quot;, gitHubParsed.getRepoName());</span>
+<span class="fc" id="L414">        variableJSON.put(&quot;branch&quot;, branch);</span>
+<span class="fc" id="L415">        variableJSON.put(&quot;since&quot;, since);</span>
+<span class="fc" id="L416">        variableJSON.put(&quot;fetchCount&quot;, fetchCount);</span>
+<span class="fc" id="L417">        query.put(&quot;query&quot;, queryString);</span>
+<span class="fc" id="L418">        query.put(&quot;variables&quot;, variableJSON.toString());</span>
+<span class="fc" id="L419">        return query;</span>
+    }
+
+    // Return github webhook settings
+    protected GitHubWebHookSettings getGitHubWebHookSettings() {
+<span class="fc" id="L424">        WebHookSettings webHookSettings = apiSettings.getWebHook();</span>
+<span class="pc bpc" id="L425" title="1 of 2 branches missed.">        if (webHookSettings == null) {</span>
+<span class="nc" id="L426">            return null;</span>
+        }
+<span class="fc" id="L428">        return webHookSettings.getGitHub();</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.3.201901230119</span></div></body></html>

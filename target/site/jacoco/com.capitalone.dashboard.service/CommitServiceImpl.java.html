@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CommitServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.capitalone.dashboard:api</a> &gt; <a href="index.source.html" class="el_package">com.capitalone.dashboard.service</a> &gt; <span class="el_source">CommitServiceImpl.java</span></div><h1>CommitServiceImpl.java</h1><pre class="source lang-java linenums">package com.capitalone.dashboard.service;
+
+import com.capitalone.dashboard.misc.HygieiaException;
+import com.capitalone.dashboard.model.Collector;
+import com.capitalone.dashboard.model.CollectorItem;
+import com.capitalone.dashboard.model.CollectorType;
+import com.capitalone.dashboard.model.Commit;
+import com.capitalone.dashboard.model.Component;
+import com.capitalone.dashboard.model.DataResponse;
+import com.capitalone.dashboard.model.QCommit;
+import com.capitalone.dashboard.repository.CollectorRepository;
+import com.capitalone.dashboard.repository.CommitRepository;
+import com.capitalone.dashboard.repository.ComponentRepository;
+import com.capitalone.dashboard.request.CommitRequest;
+import com.querydsl.core.BooleanBuilder;
+import org.apache.commons.lang3.StringUtils;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@Service
+public class CommitServiceImpl implements CommitService {
+
+    private final CommitRepository commitRepository;
+    private final ComponentRepository componentRepository;
+    private final CollectorRepository collectorRepository;
+    private final CollectorService collectorService;
+
+    @Autowired
+    public CommitServiceImpl(CommitRepository commitRepository,
+                             ComponentRepository componentRepository,
+                             CollectorRepository collectorRepository,
+<span class="fc" id="L45">                             CollectorService collectorService) {</span>
+<span class="fc" id="L46">        this.commitRepository = commitRepository;</span>
+<span class="fc" id="L47">        this.componentRepository = componentRepository;</span>
+<span class="fc" id="L48">        this.collectorRepository = collectorRepository;</span>
+<span class="fc" id="L49">        this.collectorService = collectorService;</span>
+<span class="fc" id="L50">    }</span>
+
+    @Override
+    public DataResponse&lt;Iterable&lt;Commit&gt;&gt; search(CommitRequest request) {
+<span class="fc" id="L54">        QCommit commit = new QCommit(&quot;search&quot;);</span>
+<span class="fc" id="L55">        BooleanBuilder builder = new BooleanBuilder();</span>
+
+<span class="fc" id="L57">        CollectorItem item = null;</span>
+<span class="fc" id="L58">        Component component = componentRepository.findOne(request.getComponentId());</span>
+
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        if ( (component == null)</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">                || ((item = component.getLastUpdatedCollectorItemForType(CollectorType.SCM)) == null) ) {</span>
+<span class="fc" id="L62">            Iterable&lt;Commit&gt; results = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L63">            return new DataResponse&lt;&gt;(results, new Date().getTime());</span>
+        }
+
+<span class="fc" id="L66">        builder.and(commit.collectorItemId.eq(item.getId()));</span>
+
+<span class="pc bpc" id="L68" title="1 of 2 branches missed.">        if (request.getNumberOfDays() != null) {</span>
+<span class="nc" id="L69">            long endTimeTarget = new LocalDate().minusDays(request.getNumberOfDays()).toDate().getTime();</span>
+<span class="nc" id="L70">            builder.and(commit.scmCommitTimestamp.goe(endTimeTarget));</span>
+<span class="pc bpc" id="L71" title="1 of 2 branches missed.">        } else if (request.validCommitDateRange()) {</span>
+<span class="nc" id="L72">            builder.and(commit.scmCommitTimestamp.between(request.getCommitDateBegins(), request.getCommitDateEnds()));</span>
+        }
+
+<span class="pc bpc" id="L75" title="1 of 2 branches missed.">        if (request.validChangesRange()) {</span>
+<span class="nc" id="L76">            builder.and(commit.numberOfChanges.between(request.getChangesGreaterThan(), request.getChangesLessThan()));</span>
+        }
+
+<span class="pc bpc" id="L79" title="1 of 2 branches missed.">        if (!request.getRevisionNumbers().isEmpty()) {</span>
+<span class="nc" id="L80">            builder.and(commit.scmRevisionNumber.in(request.getRevisionNumbers()));</span>
+        }
+
+<span class="pc bpc" id="L83" title="1 of 2 branches missed.">        if (!request.getAuthors().isEmpty()) {</span>
+<span class="nc" id="L84">            builder.and(commit.scmAuthor.in(request.getAuthors()));</span>
+        }
+
+<span class="pc bpc" id="L87" title="1 of 2 branches missed.">        if (StringUtils.isNotBlank(request.getMessageContains())) {</span>
+<span class="nc" id="L88">            builder.and(commit.scmCommitLog.contains(request.getMessageContains()));</span>
+        }
+
+<span class="fc" id="L91">        Collector collector = collectorRepository.findOne(item.getCollectorId());</span>
+<span class="fc" id="L92">        return new DataResponse&lt;&gt;(commitRepository.findAll(builder.getValue()), collector.getLastExecuted());</span>
+    }
+
+    @Override
+    public String createFromGitHubv3(JSONObject request) throws ParseException, HygieiaException {
+<span class="nc" id="L97">        GitHubv3 gitHubv3 = new GitHubv3(request.toJSONString());</span>
+
+<span class="nc bnc" id="L99" title="All 6 branches missed.">        if ((gitHubv3.getCollector() == null) || (gitHubv3.getCollectorItem() == null) || (CollectionUtils.isEmpty(gitHubv3.getCommits())))</span>
+<span class="nc" id="L100">            throw new HygieiaException(&quot;Nothing to update.&quot;, HygieiaException.NOTHING_TO_UPDATE);</span>
+
+<span class="nc" id="L102">        Collector col = collectorService.createCollector(gitHubv3.getCollector());</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        if (col == null) throw new HygieiaException(&quot;Failed creating collector.&quot;, HygieiaException.COLLECTOR_CREATE_ERROR);</span>
+
+<span class="nc" id="L105">        CollectorItem item = gitHubv3.getCollectorItem();</span>
+<span class="nc" id="L106">        item.setCollectorId(col.getId());</span>
+<span class="nc" id="L107">        CollectorItem colItem = collectorService.createCollectorItem(item);</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        if (colItem == null) throw new HygieiaException(&quot;Failed creating collector item.&quot;, HygieiaException.COLLECTOR_ITEM_CREATE_ERROR);</span>
+
+<span class="nc" id="L110">        int count = 0;</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">        for (Commit c : gitHubv3.getCommits()) {</span>
+<span class="nc bnc" id="L112" title="All 2 branches missed.">            if (isNewCommit(colItem, c)) {</span>
+<span class="nc" id="L113">                c.setCollectorItemId(colItem.getId());</span>
+<span class="nc" id="L114">                commitRepository.save(c);</span>
+<span class="nc" id="L115">                count = count + 1;</span>
+            }
+<span class="nc" id="L117">        }</span>
+<span class="nc" id="L118">        return col.getId() + &quot;:&quot; + colItem.getId() + &quot;:&quot; + count + &quot; new commit(s) inserted.&quot;;</span>
+
+    }
+
+    public List&lt;Commit&gt; getCommitsBySha (String scmRevisionNumber) {
+<span class="nc" id="L123">        return commitRepository.findByScmRevisionNumber(scmRevisionNumber);</span>
+    }
+
+    private boolean isNewCommit(CollectorItem repo, Commit commit) {
+<span class="nc bnc" id="L127" title="All 2 branches missed.">        return commitRepository.findByCollectorItemIdAndScmRevisionNumber(</span>
+<span class="nc" id="L128">                repo.getId(), commit.getScmRevisionNumber()) == null;</span>
+    }
+
+    private class GitHubv3 {
+        private static final String REPO_URL = &quot;url&quot;;
+        private static final String BRANCH = &quot;branch&quot;;
+        private static final String SCM_TAG = &quot;scm&quot;;
+        private static final String USER_ID = &quot;userID&quot;;
+        private static final String PASSWORD = &quot;password&quot;;
+
+        private CollectorItem collectorItem;
+        private Collector collector;
+<span class="nc" id="L140">        private List&lt;Commit&gt; commits = new ArrayList&lt;&gt;();</span>
+        private String branch;
+        private String url;
+
+        private JSONObject jsonObject;
+<span class="nc" id="L145">        private JSONParser parser = new JSONParser();</span>
+
+
+<span class="nc" id="L148">        public GitHubv3(String json) throws ParseException, HygieiaException {</span>
+
+<span class="nc" id="L150">            this.jsonObject = (JSONObject) parser.parse(json);</span>
+<span class="nc" id="L151">            buildCommits();</span>
+<span class="nc bnc" id="L152" title="All 2 branches missed.">            if (!CollectionUtils.isEmpty(commits)) {</span>
+<span class="nc" id="L153">                buildCollectorItem();</span>
+<span class="nc" id="L154">                buildCollector();</span>
+            }
+<span class="nc" id="L156">        }</span>
+
+        private void buildCollector() {
+<span class="nc" id="L159">            collector = new Collector();</span>
+<span class="nc" id="L160">            collector.setCollectorType(CollectorType.SCM);</span>
+<span class="nc" id="L161">            collector.setLastExecuted(System.currentTimeMillis());</span>
+<span class="nc" id="L162">            collector.setOnline(true);</span>
+<span class="nc" id="L163">            collector.setEnabled(true);</span>
+<span class="nc" id="L164">            collector.setName(&quot;GitHub&quot;);</span>
+<span class="nc" id="L165">            Map&lt;String, Object&gt; allOptions = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L166">            allOptions.put(REPO_URL, &quot;&quot;);</span>
+<span class="nc" id="L167">            allOptions.put(BRANCH, &quot;&quot;);</span>
+<span class="nc" id="L168">            allOptions.put(USER_ID, &quot;&quot;);</span>
+<span class="nc" id="L169">            allOptions.put(PASSWORD, &quot;&quot;);</span>
+
+<span class="nc" id="L171">            collector.setAllFields(allOptions);</span>
+
+<span class="nc" id="L173">            Map&lt;String, Object&gt; uniqueOptions = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L174">            uniqueOptions.put(REPO_URL, &quot;&quot;);</span>
+<span class="nc" id="L175">            uniqueOptions.put(BRANCH, &quot;&quot;);</span>
+<span class="nc" id="L176">            collector.setUniqueFields(uniqueOptions);</span>
+<span class="nc" id="L177">        }</span>
+
+        private void buildCollectorItem() {
+<span class="nc bnc" id="L180" title="All 2 branches missed.">            if (!StringUtils.isEmpty(branch)) {</span>
+<span class="nc" id="L181">                collectorItem = new CollectorItem();</span>
+<span class="nc" id="L182">                collectorItem.setEnabled(false);</span>
+<span class="nc" id="L183">                collectorItem.setPushed(true);</span>
+<span class="nc" id="L184">                collectorItem.setLastUpdated(System.currentTimeMillis());</span>
+<span class="nc" id="L185">                collectorItem.getOptions().put(REPO_URL, url);</span>
+<span class="nc" id="L186">                collectorItem.getOptions().put(BRANCH, branch);</span>
+<span class="nc" id="L187">                collectorItem.getOptions().put(SCM_TAG, &quot;Github&quot;);</span>
+            }
+<span class="nc" id="L189">        }</span>
+
+
+        public CollectorItem getCollectorItem() {
+<span class="nc" id="L193">            return collectorItem;</span>
+        }
+
+        public Collector getCollector() {
+<span class="nc" id="L197">            return collector;</span>
+        }
+
+        public List&lt;Commit&gt; getCommits() {
+<span class="nc" id="L201">            return commits;</span>
+        }
+
+        private void buildCommits() throws HygieiaException {
+
+<span class="nc" id="L206">            JSONArray commitArray = (JSONArray) jsonObject.get(&quot;commits&quot;);</span>
+<span class="nc" id="L207">            JSONObject repoObject = (JSONObject) jsonObject.get(&quot;repository&quot;);</span>
+<span class="nc" id="L208">            url = str(repoObject, &quot;url&quot;); // Repo can be null, but ok to throw NPE.</span>
+<span class="nc" id="L209">            branch = str(jsonObject, &quot;ref&quot;).replace(&quot;refs/heads/&quot;, &quot;&quot;); //wow!</span>
+<span class="nc bnc" id="L210" title="All 2 branches missed.">            if (CollectionUtils.isEmpty(commitArray)) return;</span>
+<span class="nc bnc" id="L211" title="All 2 branches missed.">            for (Object c : commitArray) {</span>
+<span class="nc" id="L212">                JSONObject cObj = (JSONObject) c;</span>
+<span class="nc" id="L213">                JSONObject authorObject = (JSONObject) cObj.get(&quot;author&quot;);</span>
+<span class="nc" id="L214">                String message = str(cObj, &quot;message&quot;);</span>
+<span class="nc" id="L215">                String author = str(authorObject, &quot;name&quot;);</span>
+<span class="nc" id="L216">                long timestamp = new DateTime(str(cObj, &quot;timestamp&quot;))</span>
+<span class="nc" id="L217">                        .getMillis();</span>
+<span class="nc" id="L218">                int numberChanges = ((JSONArray) cObj.get(&quot;added&quot;)).size() +</span>
+<span class="nc" id="L219">                        ((JSONArray) cObj.get(&quot;removed&quot;)).size() +</span>
+<span class="nc" id="L220">                        ((JSONArray) cObj.get(&quot;modified&quot;)).size();</span>
+
+<span class="nc" id="L222">                JSONArray parents = (JSONArray) jsonObject.get(&quot;parents&quot;);</span>
+<span class="nc" id="L223">                List&lt;String&gt; parentShas = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">                if (parents != null) {</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">                    for (Object parentObj : parents) {</span>
+<span class="nc" id="L226">                        parentShas.add(str((JSONObject)parentObj, &quot;sha&quot;));</span>
+<span class="nc" id="L227">                    }</span>
+                }
+
+<span class="nc" id="L230">                Commit commit = new Commit();</span>
+<span class="nc" id="L231">                commit.setScmUrl(url);</span>
+<span class="nc" id="L232">                commit.setTimestamp(System.currentTimeMillis()); // this is hygieia timestamp.</span>
+<span class="nc" id="L233">                commit.setScmRevisionNumber(str(cObj, &quot;id&quot;));</span>
+<span class="nc" id="L234">                commit.setScmParentRevisionNumbers(parentShas);</span>
+<span class="nc" id="L235">                commit.setScmAuthor(author);</span>
+<span class="nc" id="L236">                commit.setScmCommitLog(message);</span>
+<span class="nc" id="L237">                commit.setScmCommitTimestamp(timestamp); // actual search timestamp</span>
+<span class="nc" id="L238">                commit.setNumberOfChanges(numberChanges);</span>
+<span class="nc" id="L239">                commit.setScmBranch(branch);</span>
+<span class="nc" id="L240">                commits.add(commit);</span>
+<span class="nc" id="L241">            }</span>
+<span class="nc" id="L242">        }</span>
+
+        private String str(JSONObject json, String key) throws HygieiaException {
+<span class="nc bnc" id="L245" title="All 2 branches missed.">            if (json == null) {</span>
+<span class="nc" id="L246">                throw new HygieiaException(&quot;Field '&quot; + key + &quot;' cannot be missing or null or empty&quot;, HygieiaException.JSON_FORMAT_ERROR);</span>
+            }
+<span class="nc" id="L248">            Object value = json.get(key);</span>
+<span class="nc bnc" id="L249" title="All 2 branches missed.">            return (value == null) ? null : value.toString();</span>
+        }
+
+    }
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.3.201901230119</span></div></body></html>

@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OpenIdAuthenticationServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.capitalone.dashboard:api</a> &gt; <a href="index.source.html" class="el_package">com.capitalone.dashboard.auth.openid</a> &gt; <span class="el_source">OpenIdAuthenticationServiceImpl.java</span></div><h1>OpenIdAuthenticationServiceImpl.java</h1><pre class="source lang-java linenums">package com.capitalone.dashboard.auth.openid;
+
+import com.capitalone.dashboard.auth.AuthProperties;
+import com.capitalone.dashboard.auth.ldap.CustomUserDetails;
+import com.capitalone.dashboard.client.RestClient;
+import com.capitalone.dashboard.model.AuthType;
+import com.capitalone.dashboard.model.UserRole;
+import com.google.common.collect.Sets;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.SignatureException;
+import io.jsonwebtoken.MalformedJwtException;
+import org.apache.commons.lang3.StringUtils;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.ParseException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+import org.springframework.stereotype.Component;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Objects;
+import java.util.Date;
+
+@Component
+public class OpenIdAuthenticationServiceImpl implements OpenIdAuthenticationService {
+
+    private static final String AUTHORIZATION = &quot;Authorization&quot;;
+    private static final String AUTH_PREFIX_SSO_W_SPACE = &quot;ssoCode &quot;;
+    private static final String AUTH_RESPONSE_HEADER = &quot;X-Authentication-Token&quot;;
+    private static final String ROLES_CLAIM = &quot;roles&quot;;
+    private static final String DETAILS_CLAIM = &quot;details&quot;;
+    private static final String ACCESS_TOKEN = &quot;access_token&quot;;
+    private static final String TOKEN_ENDPOINT = &quot;/as/token.oauth2&quot;;
+    private static final String USER_INFO_ENDPOINT = &quot;/idp/userinfo.openid&quot;;
+
+    private AuthProperties authProperties;
+    private RestClient restClient;
+
+<span class="nc" id="L50">    public OpenIdAuthenticationServiceImpl() {}</span>
+
+    @Autowired
+<span class="fc" id="L53">    public OpenIdAuthenticationServiceImpl(AuthProperties authProperties, RestClient restClient) {</span>
+<span class="fc" id="L54">        this.authProperties = authProperties;</span>
+<span class="fc" id="L55">        this.restClient = restClient;</span>
+<span class="fc" id="L56">    }</span>
+
+    @Override
+    public void addAuthentication(HttpServletResponse response, Authentication authentication) {
+<span class="fc" id="L60">        String jwt = Jwts.builder().setSubject(authentication.getName())</span>
+<span class="fc" id="L61">                .claim(DETAILS_CLAIM, authentication.getDetails())</span>
+<span class="fc" id="L62">                .claim(ROLES_CLAIM, getRoles(authentication.getAuthorities()))</span>
+<span class="fc" id="L63">                .setExpiration(new Date(System.currentTimeMillis() + authProperties.getExpirationTime()))</span>
+<span class="fc" id="L64">                .signWith(SignatureAlgorithm.HS512, authProperties.getSecret()).compact();</span>
+<span class="fc" id="L65">        response.addHeader(AUTH_RESPONSE_HEADER, jwt);</span>
+
+<span class="fc" id="L67">    }</span>
+
+    @Override
+    public Authentication getAuthentication(HttpServletRequest request) {
+<span class="fc" id="L71">        String authHeader = request.getHeader(AUTHORIZATION);</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">        if (!isValid(authHeader)) return null;</span>
+
+<span class="fc" id="L74">        String authCode = getAuthCode(authHeader);</span>
+        try {
+<span class="fc" id="L76">            JSONObject tokenObj = getOpenIdAccessTokenObject(authCode);</span>
+<span class="fc" id="L77">            String accessToken = (String) tokenObj.get(ACCESS_TOKEN);</span>
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">            if (Objects.isNull(accessToken)) return null;</span>
+
+<span class="fc" id="L80">            JSONObject userInfoObj = getOpenIdUserInfo(accessToken);</span>
+<span class="pc bpc" id="L81" title="1 of 2 branches missed.">            if (Objects.isNull(userInfoObj)) return null;</span>
+
+<span class="fc" id="L83">            CustomUserDetails principle = getUserDetails(userInfoObj);</span>
+<span class="fc" id="L84">            Collection&lt;? extends GrantedAuthority&gt; authorities = getAuthorities(Collections.singletonList(UserRole.ROLE_USER.name()));</span>
+<span class="fc" id="L85">            PreAuthenticatedAuthenticationToken authentication = new PreAuthenticatedAuthenticationToken(principle, null, authorities);</span>
+<span class="fc" id="L86">            authentication.setDetails(AuthType.SSO);</span>
+<span class="fc" id="L87">            return authentication;</span>
+
+<span class="nc" id="L89">        } catch (ExpiredJwtException | SignatureException | MalformedJwtException | ParseException e) {</span>
+<span class="nc" id="L90">            return null;</span>
+        }
+    }
+
+    private CustomUserDetails getUserDetails(JSONObject userInfoObj) {
+<span class="fc" id="L95">        CustomUserDetails customUserDetails = new CustomUserDetails();</span>
+<span class="fc" id="L96">        customUserDetails.setUsername((String) userInfoObj.get(&quot;sub&quot;));</span>
+<span class="fc" id="L97">        customUserDetails.setFirstName((String) userInfoObj.get(&quot;FirstName&quot;));</span>
+<span class="fc" id="L98">        customUserDetails.setLastName((String) userInfoObj.get(&quot;LastName&quot;));</span>
+<span class="fc" id="L99">        customUserDetails.setEmailAddress((String) userInfoObj.get(&quot;Email&quot;));</span>
+<span class="fc" id="L100">        return customUserDetails;</span>
+    }
+
+    private boolean isValid(String authHeader) {
+<span class="fc bfc" id="L104" title="All 4 branches covered.">        return StringUtils.isNotBlank(authHeader) &amp;&amp; StringUtils.startsWithIgnoreCase(authHeader, AUTH_PREFIX_SSO_W_SPACE)</span>
+<span class="fc bfc" id="L105" title="All 2 branches covered.">                &amp;&amp; StringUtils.isNotBlank(getAuthCode(authHeader));</span>
+    }
+
+    private JSONObject getOpenIdUserInfo(String accessToken) throws ParseException {
+<span class="fc" id="L109">        String userInfoEndPoint = authProperties.getOpenIdServerHost() + USER_INFO_ENDPOINT;</span>
+<span class="fc" id="L110">        ResponseEntity&lt;String&gt; userInfoResponse = restClient.makeRestCallPost(userInfoEndPoint, getUserInfoHeaders(accessToken), &quot;&quot;);</span>
+<span class="fc" id="L111">        return restClient.parseAsObject(userInfoResponse);</span>
+    }
+
+    private HttpHeaders getUserInfoHeaders(String accessToken) {
+<span class="fc" id="L115">        HttpHeaders httpHeaders = new HttpHeaders();</span>
+<span class="fc" id="L116">        httpHeaders.add(AUTHORIZATION, &quot;Bearer &quot;+ accessToken);</span>
+<span class="fc" id="L117">        httpHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);</span>
+<span class="fc" id="L118">        return httpHeaders;</span>
+    }
+
+    private JSONObject getOpenIdAccessTokenObject(String authCode) throws ParseException {
+<span class="fc" id="L122">        String tokenHostEndPoint = authProperties.getOpenIdServerHost() + TOKEN_ENDPOINT;</span>
+<span class="fc" id="L123">        String grantType = authProperties.getOpenIdGrantType();</span>
+<span class="fc" id="L124">        String redirectUri = authProperties.getOpenIdRedirectUri();</span>
+<span class="fc" id="L125">        String scope = authProperties.getOpenIdScope();</span>
+<span class="fc" id="L126">        String tokenUrl = tokenHostEndPoint + &quot;?code=&quot; + authCode + &quot;&amp;grant_type=&quot; + grantType + &quot;&amp;redirect_uri=&quot; + redirectUri + &quot;&amp;scope=&quot;+ scope;</span>
+<span class="fc" id="L127">        ResponseEntity&lt;String&gt; tokenResponse = restClient.makeRestCallPost(tokenUrl, getHeaders(), &quot;&quot;);</span>
+<span class="fc" id="L128">        return restClient.parseAsObject(tokenResponse);</span>
+    }
+
+    private String getAuthCode(String authHeader) {
+<span class="fc" id="L132">        return StringUtils.removeStart(authHeader, AUTH_PREFIX_SSO_W_SPACE);</span>
+    }
+
+    private HttpHeaders getHeaders() {
+<span class="fc" id="L136">        HttpHeaders httpHeaders = new HttpHeaders();</span>
+<span class="fc" id="L137">        String clientAuth = Base64.getEncoder().encodeToString((authProperties.getOpenIdClientId()</span>
+<span class="fc" id="L138">                + &quot;:&quot; + authProperties.getOpenIdClientSecret()).getBytes());</span>
+<span class="fc" id="L139">        httpHeaders.add(AUTHORIZATION, &quot;Basic&quot; + &quot; &quot; + clientAuth);</span>
+<span class="fc" id="L140">        httpHeaders.setContentType(MediaType.APPLICATION_JSON);</span>
+<span class="fc" id="L141">        return httpHeaders;</span>
+    }
+
+    private Collection&lt;String&gt; getRoles(Collection&lt;? extends GrantedAuthority&gt; authorities) {
+<span class="fc" id="L145">        Collection&lt;String&gt; roles = Sets.newHashSet();</span>
+<span class="fc" id="L146">        authorities.forEach(authority -&gt; {</span>
+<span class="fc" id="L147">            roles.add(authority.getAuthority());</span>
+<span class="fc" id="L148">        });</span>
+<span class="fc" id="L149">        return roles;</span>
+    }
+
+    private Collection&lt;? extends GrantedAuthority&gt; getAuthorities(Collection&lt;String&gt; roles) {
+<span class="fc" id="L153">        Collection&lt;GrantedAuthority&gt; authorities = Sets.newHashSet();</span>
+<span class="fc" id="L154">        roles.forEach(role -&gt; authorities.add(new SimpleGrantedAuthority(role)));</span>
+<span class="fc" id="L155">        return authorities;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.3.201901230119</span></div></body></html>

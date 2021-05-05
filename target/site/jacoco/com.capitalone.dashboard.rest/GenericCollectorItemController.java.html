@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GenericCollectorItemController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.capitalone.dashboard:api</a> &gt; <a href="index.source.html" class="el_package">com.capitalone.dashboard.rest</a> &gt; <span class="el_source">GenericCollectorItemController.java</span></div><h1>GenericCollectorItemController.java</h1><pre class="source lang-java linenums">package com.capitalone.dashboard.rest;
+
+import com.capitalone.dashboard.misc.HygieiaException;
+import com.capitalone.dashboard.request.GenericCollectorItemCreateRequest;
+import com.capitalone.dashboard.service.GenericCollectorItemService;
+import com.capitalone.dashboard.util.CommonConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
+
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+import static org.springframework.web.bind.annotation.RequestMethod.POST;
+
+@RestController
+public class GenericCollectorItemController {
+
+    private final HttpServletRequest httpServletRequest;
+    private final GenericCollectorItemService genericCollectorItemService;
+
+<span class="fc" id="L28">    private static final Logger LOGGER = LoggerFactory.getLogger(GenericCollectorItemController.class);</span>
+
+    @Autowired
+<span class="fc" id="L31">    public GenericCollectorItemController(HttpServletRequest httpServletRequest, GenericCollectorItemService genericCollectorItemService) {</span>
+<span class="fc" id="L32">        this.httpServletRequest = httpServletRequest;</span>
+<span class="fc" id="L33">        this.genericCollectorItemService = genericCollectorItemService;</span>
+<span class="fc" id="L34">    }</span>
+
+
+    @RequestMapping(value = &quot;/generic-item&quot;, method = POST,
+            consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
+    public ResponseEntity&lt;String&gt; createGenericItem (@Valid @RequestBody GenericCollectorItemCreateRequest request) throws HygieiaException {
+<span class="fc" id="L40">        request.setClientReference(httpServletRequest.getHeader(CommonConstants.HEADER_CLIENT_CORRELATION_ID));</span>
+<span class="fc" id="L41">        String requester = httpServletRequest.getHeader(CommonConstants.HEADER_API_USER);</span>
+<span class="fc" id="L42">        String response = genericCollectorItemService.create(request);</span>
+<span class="fc" id="L43">        StringBuilder log = new StringBuilder();</span>
+<span class="fc" id="L44">        log.append(&quot;correlation_id=&quot; + request.getClientReference() + &quot;, application=hygieia, service=api, uri=&quot; + httpServletRequest.getRequestURI());</span>
+<span class="fc" id="L45">        log.append(&quot;, requester=&quot; + requester + &quot;, response_status=success, response_code=&quot; +HttpStatus.CREATED.value());</span>
+<span class="fc" id="L46">        log.append(&quot;, response_status_message=&quot; + response + &quot;, build_url=&quot; + request.getBuildUrl());</span>
+<span class="fc" id="L47">        log.append(&quot;, gce_request_pattern=&quot; + request.getPattern() + &quot;, gce_tool=&quot; + request.getToolName());</span>
+<span class="fc" id="L48">        log.append(&quot;, gce_capture_pattern=&quot;+request.getPattern() + &quot;, gce_source=&quot; + request.getSource());</span>
+<span class="fc" id="L49">        log.append(&quot;, gce_related_coll_item=&quot; + request.getRelatedCollectorItemId() + &quot;, gce_raw_data=&quot; + request.getRawData());</span>
+<span class="fc" id="L50">        LOGGER.info(log.toString());</span>
+<span class="fc" id="L51">        return ResponseEntity</span>
+<span class="fc" id="L52">                .status(HttpStatus.CREATED)</span>
+<span class="fc" id="L53">                .body(response);</span>
+    }
+
+    @RequestMapping(value = &quot;/generic-binary-artifact&quot;, method = POST,
+            consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
+    public ResponseEntity&lt;String&gt; createGenericBinaryArtifact (@Valid @RequestBody GenericCollectorItemCreateRequest request) throws HygieiaException {
+<span class="nc" id="L59">        String response = genericCollectorItemService.createGenericBinaryArtifactData(request);</span>
+<span class="nc" id="L60">        return ResponseEntity</span>
+<span class="nc" id="L61">                .status(HttpStatus.CREATED)</span>
+<span class="nc" id="L62">                .body(response);</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.3.201901230119</span></div></body></html>

@@ -1,0 +1,550 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GitHubPullRequestV3.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.capitalone.dashboard:api</a> &gt; <a href="index.source.html" class="el_package">com.capitalone.dashboard.webhook.github</a> &gt; <span class="el_source">GitHubPullRequestV3.java</span></div><h1>GitHubPullRequestV3.java</h1><pre class="source lang-java linenums">package com.capitalone.dashboard.webhook.github;
+
+import com.capitalone.dashboard.model.GitHubCollector;
+import com.capitalone.dashboard.model.PullRequestEvent;
+import com.capitalone.dashboard.repository.BaseCollectorRepository;
+import com.capitalone.dashboard.repository.CollectorItemRepository;
+import com.capitalone.dashboard.settings.ApiSettings;
+import com.capitalone.dashboard.client.RestClient;
+import com.capitalone.dashboard.model.webhook.github.GitHubParsed;
+import com.capitalone.dashboard.misc.HygieiaException;
+import com.capitalone.dashboard.model.CollectorItem;
+import com.capitalone.dashboard.model.Comment;
+import com.capitalone.dashboard.model.Commit;
+import com.capitalone.dashboard.model.CommitStatus;
+import com.capitalone.dashboard.model.GitRequest;
+import com.capitalone.dashboard.model.Review;
+import com.capitalone.dashboard.repository.CommitRepository;
+import com.capitalone.dashboard.repository.GitRequestRepository;
+import com.capitalone.dashboard.service.CollectorService;
+import com.capitalone.dashboard.webhook.settings.GitHubWebHookSettings;
+import com.capitalone.dashboard.webhook.settings.WebHookSettings;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.joda.time.DateTime;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.ParseException;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestClientException;
+import java.net.MalformedURLException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
+
+public class GitHubPullRequestV3 extends GitHubV3 {
+<span class="fc" id="L42">    private static final Log LOG = LogFactory.getLog(GitHubPullRequestV3.class);</span>
+
+    private final GitRequestRepository gitRequestRepository;
+    private final CommitRepository commitRepository;
+
+    public GitHubPullRequestV3(CollectorService collectorService,
+                               RestClient restClient,
+                               GitRequestRepository gitRequestRepository,
+                               CommitRepository commitRepository,
+                               CollectorItemRepository collectorItemRepository,
+                               ApiSettings apiSettings,
+                               BaseCollectorRepository&lt;GitHubCollector&gt; collectorRepository) {
+<span class="fc" id="L54">        super(collectorService, restClient, apiSettings, collectorItemRepository, collectorRepository);</span>
+
+<span class="fc" id="L56">        this.gitRequestRepository = gitRequestRepository;</span>
+<span class="fc" id="L57">        this.commitRepository = commitRepository;</span>
+<span class="fc" id="L58">    }</span>
+
+    @Override
+<span class="nc" id="L61">    public CollectorItemRepository getCollectorItemRepository() { return super.collectorItemRepository; }</span>
+
+    @Override
+    public String process(JSONObject prJsonObject) throws MalformedURLException, HygieiaException, ParseException {
+<span class="nc" id="L65">        Object pullRequestObject = restClient.getAsObject(prJsonObject, &quot;pull_request&quot;);</span>
+<span class="nc" id="L66">        String event = restClient.getString(prJsonObject,&quot;action&quot;);</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        if(!isValidEvent(event)) return &quot;Pull Request data skipped due to event - &quot;+event;</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        if (pullRequestObject == null) return &quot;Pull Request Data Not Available&quot;;</span>
+
+<span class="nc" id="L70">        int prNumber = restClient.getInteger(pullRequestObject,&quot;number&quot;);</span>
+<span class="nc bnc" id="L71" title="All 2 branches missed.">        if (prNumber == 0) return &quot;Pull Request Number Not Available&quot;;</span>
+
+<span class="nc" id="L73">        Object repoMap = prJsonObject.get(&quot;repository&quot;);</span>
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        if (repoMap == null) { return &quot;Repository Data Not Available&quot;; }</span>
+
+<span class="nc" id="L76">        String repoUrl = restClient.getString(repoMap, &quot;html_url&quot;);</span>
+<span class="nc" id="L77">        GitHubParsed gitHubParsed = new GitHubParsed(repoUrl);</span>
+
+<span class="nc" id="L79">        boolean isPrivate = restClient.getBoolean(repoMap, &quot;private&quot;);</span>
+
+<span class="nc" id="L81">        JSONObject postBody = buildGraphQLQuery(gitHubParsed, pullRequestObject);</span>
+
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        if (postBody == null) { return &quot;No Commits found on the PR. Returning ...&quot;;}</span>
+
+<span class="nc" id="L85">        WebHookSettings webHookSettings = apiSettings.getWebHook();</span>
+
+<span class="nc bnc" id="L87" title="All 2 branches missed.">        if (webHookSettings == null) {</span>
+<span class="nc" id="L88">            return &quot;Github Webhook properties not set on the properties file&quot;;</span>
+        }
+
+<span class="nc" id="L91">        GitHubWebHookSettings gitHubWebHookSettings = webHookSettings.getGitHub();</span>
+
+<span class="nc bnc" id="L93" title="All 2 branches missed.">        if (gitHubWebHookSettings == null) {</span>
+<span class="nc" id="L94">            return &quot;Github Webhook properties not set on the properties file&quot;;</span>
+        }
+
+<span class="nc" id="L97">        String gitHubWebHookToken = gitHubWebHookSettings.getToken();</span>
+
+<span class="nc" id="L99">        long start = System.currentTimeMillis();</span>
+
+<span class="nc" id="L101">        String repoToken = getRepositoryToken(gitHubParsed.getUrl());</span>
+
+<span class="nc" id="L103">        long end = System.currentTimeMillis();</span>
+<span class="nc" id="L104">        LOG.debug(&quot;Time to make collectorItemRepository call to fetch repository token = &quot;+(end-start));</span>
+
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        String token = isPrivate ? repoToken : gitHubWebHookToken;</span>
+
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        if (StringUtils.isEmpty(token)) {</span>
+<span class="nc" id="L109">            throw new HygieiaException(&quot;Failed processing payload. Missing Github API token in Hygieia.&quot;, HygieiaException.INVALID_CONFIGURATION);</span>
+        }
+
+<span class="nc" id="L112">        ResponseEntity&lt;String&gt; response = null;</span>
+
+<span class="nc" id="L114">        int retryCount = 0;</span>
+        while(true) {
+            try {
+<span class="nc" id="L117">                response = restClient.makeRestCallPost(gitHubParsed.getGraphQLUrl(), &quot;token&quot;, token, postBody);</span>
+<span class="nc" id="L118">                break;</span>
+<span class="nc" id="L119">            } catch (Exception e) {</span>
+<span class="nc" id="L120">                retryCount++;</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">                if(retryCount &gt; gitHubWebHookSettings.getMaxRetries()) {</span>
+<span class="nc" id="L122">                    LOG.error(&quot;Unable to get PR from &quot; + repoUrl + &quot; after &quot; + gitHubWebHookSettings.getMaxRetries() + &quot; tries!&quot;);</span>
+<span class="nc" id="L123">                    throw new HygieiaException(e);</span>
+                }
+<span class="nc" id="L125">            }</span>
+        }
+
+<span class="nc" id="L128">        JSONObject responseJsonObject = restClient.parseAsObject(response);</span>
+
+<span class="nc bnc" id="L130" title="All 4 branches missed.">        if ((responseJsonObject == null) || responseJsonObject.isEmpty()) { return &quot;GraphQL Response Empty From &quot;+gitHubParsed.getGraphQLUrl(); }</span>
+
+<span class="nc" id="L132">        checkForErrors(responseJsonObject);</span>
+
+<span class="nc" id="L134">        JSONObject prData = (JSONObject) responseJsonObject.get(&quot;data&quot;);</span>
+
+<span class="nc bnc" id="L136" title="All 4 branches missed.">        if ((prData == null) || prData.isEmpty()) { return &quot;Pull Request Data Empty From &quot;+gitHubParsed.getGraphQLUrl(); }</span>
+
+<span class="nc" id="L138">        Object base = restClient.getAsObject(pullRequestObject, &quot;base&quot;);</span>
+<span class="nc" id="L139">        String branch = restClient.getString(base, &quot;ref&quot;);</span>
+
+<span class="nc bnc" id="L141" title="All 2 branches missed.">        if(!isRegistered(repoUrl, branch)) {</span>
+<span class="nc" id="L142">            return &quot;Repo: &lt;&quot; + repoUrl + &quot;&gt; Branch: &lt;&quot; + branch + &quot;&gt; is not registered in Hygieia&quot;;</span>
+        }
+
+<span class="nc" id="L145">        GitRequest pull = buildGitRequestFromPayload(repoUrl, branch, pullRequestObject, token);</span>
+
+<span class="nc" id="L147">        updateGitRequestWithGraphQLData(pull, repoUrl, branch, prData, token);</span>
+
+<span class="nc" id="L149">        updateCollectorItemLastUpdated(repoUrl, branch);</span>
+<span class="nc" id="L150">        gitRequestRepository.save(pull);</span>
+
+<span class="nc" id="L152">        return &quot;Pull Request Processed Successfully&quot;;</span>
+    }
+
+    protected JSONObject buildGraphQLQuery(GitHubParsed gitHubParsed, Object pullRequestObject) {
+<span class="fc" id="L156">        StringBuilder queryBuilder = new StringBuilder(&quot;&quot;);</span>
+
+<span class="fc" id="L158">        int pullNumber = restClient.getInteger(pullRequestObject,&quot;number&quot;);</span>
+<span class="fc" id="L159">        int commitsCount = restClient.getInteger(pullRequestObject, &quot;commits&quot;);</span>
+<span class="fc" id="L160">        int commentsCount = restClient.getInteger(pullRequestObject, &quot;comments&quot;);</span>
+
+<span class="pc bpc" id="L162" title="1 of 2 branches missed.">        if (commitsCount == 0) { return null; }</span>
+
+<span class="fc" id="L164">        JSONObject variableJSON = new JSONObject();</span>
+<span class="fc" id="L165">        variableJSON.put(&quot;owner&quot;, gitHubParsed.getOrgName());</span>
+<span class="fc" id="L166">        variableJSON.put(&quot;name&quot;, gitHubParsed.getRepoName());</span>
+<span class="fc" id="L167">        variableJSON.put(&quot;number&quot;, pullNumber);</span>
+
+<span class="fc" id="L169">        queryBuilder.append(GraphQLQuery.PR_GRAPHQL_BEGIN_PRE);</span>
+<span class="pc bpc" id="L170" title="1 of 2 branches missed.">        if (commitsCount &gt; 0) {</span>
+<span class="fc" id="L171">            queryBuilder.append(GraphQLQuery.PR_GRAPHQL_COMMITS_BEGIN);</span>
+<span class="fc" id="L172">            variableJSON.put(&quot;commits&quot;, commitsCount);</span>
+        }
+<span class="fc bfc" id="L174" title="All 2 branches covered.">        if (commentsCount &gt; 0) {</span>
+<span class="fc" id="L175">            queryBuilder.append(GraphQLQuery.PR_GRAPHQL_COMMENTS_BEGIN);</span>
+<span class="fc" id="L176">            variableJSON.put(&quot;comments&quot;, commentsCount);</span>
+        }
+<span class="fc" id="L178">        queryBuilder.append(GraphQLQuery.PR_GRAPHQL_BEGIN_POST);</span>
+
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">        if (commitsCount &gt; 0) {</span>
+<span class="fc" id="L181">            queryBuilder.append(GraphQLQuery.PR_GRAPHQL_COMMITS);</span>
+        }
+<span class="fc bfc" id="L183" title="All 2 branches covered.">        if (commentsCount &gt; 0) {</span>
+<span class="fc" id="L184">            queryBuilder.append(GraphQLQuery.PR_GRAPHQL_COMMENTS);</span>
+        }
+
+<span class="fc" id="L187">        queryBuilder.append(GraphQLQuery.PR_GRAPHQL_REVIEWS);</span>
+<span class="fc" id="L188">        queryBuilder.append(GraphQLQuery.PR_GRAPHQL_END);</span>
+
+<span class="fc" id="L190">        JSONObject query = new JSONObject();</span>
+
+<span class="fc" id="L192">        query.put(&quot;query&quot;, queryBuilder.toString());</span>
+<span class="fc" id="L193">        query.put(&quot;variables&quot;, variableJSON.toString());</span>
+
+<span class="fc" id="L195">        return query;</span>
+    }
+
+    protected GitRequest buildGitRequestFromPayload(String repoUrl, String branch, Object pullRequestObject, String token) throws HygieiaException, MalformedURLException {
+<span class="fc" id="L199">        GitRequest pull = new GitRequest();</span>
+<span class="fc" id="L200">        GitHubParsed gitHubParsed = new GitHubParsed(repoUrl);</span>
+
+<span class="fc" id="L202">        pull.setRequestType(&quot;pull&quot;);</span>
+<span class="fc" id="L203">        pull.setNumber(restClient.getString(pullRequestObject,&quot;number&quot;));</span>
+<span class="fc" id="L204">        Object user = restClient.getAsObject(pullRequestObject, &quot;user&quot;);</span>
+<span class="fc" id="L205">        pull.setUserId(restClient.getString(user, &quot;login&quot;));</span>
+<span class="fc" id="L206">        pull.setScmUrl(repoUrl);</span>
+<span class="fc" id="L207">        pull.setScmBranch(branch);</span>
+<span class="fc" id="L208">        pull.setOrgName(gitHubParsed.getOrgName());</span>
+<span class="fc" id="L209">        pull.setRepoName(gitHubParsed.getRepoName());</span>
+<span class="fc" id="L210">        pull.setScmCommitLog(restClient.getString(pullRequestObject, &quot;title&quot;));</span>
+<span class="fc" id="L211">        pull.setTimestamp(System.currentTimeMillis());</span>
+
+<span class="fc" id="L213">        String createdTimestampStr = restClient.getString(pullRequestObject, &quot;created_at&quot;);</span>
+<span class="fc" id="L214">        long createdTimestampMillis = getTimeStampMills(createdTimestampStr);</span>
+<span class="fc" id="L215">        pull.setCreatedAt(createdTimestampMillis);</span>
+
+<span class="fc" id="L217">        String updatedTimestampStr = restClient.getString(pullRequestObject, &quot;updated_at&quot;);</span>
+<span class="fc" id="L218">        pull.setUpdatedAt(getTimeStampMills(updatedTimestampStr));</span>
+
+<span class="fc" id="L220">        String closedTimestampStr = restClient.getString(pullRequestObject, &quot;closed_at&quot;);</span>
+<span class="fc" id="L221">        pull.setClosedAt(getTimeStampMills(closedTimestampStr));</span>
+
+<span class="fc" id="L223">        String stateStr = restClient.getString(pullRequestObject, &quot;state&quot;);</span>
+<span class="pc bpc" id="L224" title="1 of 2 branches missed.">        if (!StringUtils.isEmpty(stateStr)) {</span>
+<span class="pc bpc" id="L225" title="2 of 4 branches missed.">            if (&quot;closed&quot;.equalsIgnoreCase(stateStr) || &quot;close&quot;.equalsIgnoreCase(stateStr)) {</span>
+<span class="nc" id="L226">                stateStr = &quot;merged&quot;;</span>
+            }
+<span class="fc" id="L228">            pull.setState(stateStr.toLowerCase());</span>
+        }
+
+        // Source Repo on which the changes/commits have been made.
+<span class="fc" id="L232">        Object head = restClient.getAsObject(pullRequestObject, &quot;head&quot;);</span>
+<span class="fc" id="L233">        pull.setHeadSha(restClient.getString(head, &quot;sha&quot;));</span>
+<span class="fc" id="L234">        Object headRepo = restClient.getAsObject(head, &quot;repo&quot;);</span>
+<span class="fc" id="L235">        pull.setSourceRepo(restClient.getString(headRepo, &quot;full_name&quot;));</span>
+<span class="fc" id="L236">        pull.setSourceBranch(restClient.getString(head, &quot;ref&quot;));</span>
+
+        // Target Repo against which the PR has been raised.
+<span class="fc" id="L239">        Object base = restClient.getAsObject(pullRequestObject, &quot;base&quot;);</span>
+<span class="fc" id="L240">        pull.setBaseSha(restClient.getString(base, &quot;sha&quot;));</span>
+<span class="fc" id="L241">        pull.setTargetBranch(branch);</span>
+<span class="pc bpc" id="L242" title="1 of 2 branches missed.">        pull.setTargetRepo(!Objects.equals(&quot;&quot;, gitHubParsed.getOrgName()) ? gitHubParsed.getOrgName() + &quot;/&quot; + gitHubParsed.getRepoName() : gitHubParsed.getRepoName());</span>
+
+        // Total number of commits
+<span class="fc" id="L245">        pull.setNumberOfChanges(restClient.getInteger(pullRequestObject, &quot;commits&quot;));</span>
+<span class="fc" id="L246">        pull.setCountFilesChanged(restClient.getLong(pullRequestObject, &quot;changed_files&quot;));</span>
+<span class="fc" id="L247">        pull.setLineAdditions(restClient.getLong(pullRequestObject, &quot;additions&quot;));</span>
+<span class="fc" id="L248">        pull.setLineDeletions(restClient.getLong(pullRequestObject, &quot;deletions&quot;));</span>
+
+        // Merge Details: From the closed PR
+<span class="fc" id="L251">        long mergedTimestampMillis = getTimeStampMills(restClient.getString(pullRequestObject, &quot;merged_at&quot;));</span>
+
+<span class="pc bpc" id="L253" title="1 of 2 branches missed.">        if (mergedTimestampMillis &gt; 0) {</span>
+<span class="pc bpc" id="L254" title="1 of 2 branches missed.">            if (createdTimestampMillis &gt; 0) {</span>
+<span class="fc" id="L255">                pull.setResolutiontime((mergedTimestampMillis - createdTimestampMillis));</span>
+            }
+<span class="fc" id="L257">            pull.setScmCommitTimestamp(mergedTimestampMillis);</span>
+<span class="fc" id="L258">            pull.setMergedAt(mergedTimestampMillis);</span>
+<span class="fc" id="L259">            String mergeSha = restClient.getString(pullRequestObject, &quot;merge_commit_sha&quot;);</span>
+<span class="fc" id="L260">            pull.setScmRevisionNumber(mergeSha);</span>
+<span class="fc" id="L261">            pull.setScmMergeEventRevisionNumber(mergeSha);</span>
+<span class="fc" id="L262">            Object mergedBy = restClient.getAsObject(pullRequestObject,&quot;merged_by&quot;);</span>
+<span class="fc" id="L263">            pull.setMergeAuthor(restClient.getString(mergedBy, &quot;login&quot;));</span>
+<span class="fc" id="L264">            String mergeAuthorType = getAuthorType(repoUrl, pull.getMergeAuthor(), token);</span>
+<span class="pc bpc" id="L265" title="1 of 2 branches missed.">            if (!StringUtils.isEmpty(mergeAuthorType)) {</span>
+<span class="nc" id="L266">                pull.setMergeAuthorType(mergeAuthorType);</span>
+            }
+<span class="fc" id="L268">            String mergeAuthorLDAPDN = getLDAPDN(repoUrl, pull.getMergeAuthor(), token);</span>
+<span class="pc bpc" id="L269" title="1 of 2 branches missed.">            if (!StringUtils.isEmpty(mergeAuthorLDAPDN)) {</span>
+<span class="nc" id="L270">                pull.setMergeAuthorLDAPDN(mergeAuthorLDAPDN);</span>
+            }
+        }
+
+<span class="fc" id="L274">        setCollectorItemId(pull);</span>
+
+<span class="fc" id="L276">        return pull;</span>
+    }
+
+    protected void setCollectorItemId (GitRequest pull) throws MalformedURLException, HygieiaException {
+<span class="fc" id="L280">        long start = System.currentTimeMillis();</span>
+
+<span class="fc" id="L282">        GitRequest existingPR</span>
+<span class="fc" id="L283">                = gitRequestRepository.findByScmUrlIgnoreCaseAndScmBranchIgnoreCaseAndNumberAndRequestTypeIgnoreCase(pull.getScmUrl(), pull.getScmBranch(), pull.getNumber(), &quot;pull&quot;);</span>
+
+<span class="fc bfc" id="L285" title="All 2 branches covered.">        if (existingPR != null) {</span>
+<span class="fc" id="L286">            pull.setId(existingPR.getId());</span>
+<span class="fc" id="L287">            pull.setCollectorItemId(existingPR.getCollectorItemId());</span>
+<span class="fc" id="L288">            CollectorItem collectorItem = collectorService.getCollectorItem(existingPR.getCollectorItemId());</span>
+<span class="fc" id="L289">            collectorItem.setEnabled(true);</span>
+<span class="fc" id="L290">            collectorItem.setPushed(true);</span>
+<span class="fc" id="L291">            collectorItemRepository.save(collectorItem);</span>
+<span class="fc" id="L292">        } else {</span>
+<span class="fc" id="L293">            GitHubParsed gitHubParsed = new GitHubParsed(pull.getScmUrl());</span>
+<span class="fc" id="L294">            CollectorItem collectorItem = getCollectorItem(gitHubParsed.getUrl(), pull.getScmBranch());</span>
+<span class="fc" id="L295">            pull.setCollectorItemId(collectorItem.getId());</span>
+        }
+
+<span class="fc" id="L298">        long end = System.currentTimeMillis();</span>
+
+<span class="fc" id="L300">        LOG.debug(&quot;Time to make gitRequestRepository call to create the collector item = &quot;+(end-start));</span>
+<span class="fc" id="L301">    }</span>
+
+    protected void updateGitRequestWithGraphQLData(GitRequest pull, String repoUrl,
+                                                   String branch, JSONObject prData,
+                                                   String token)  {
+<span class="fc" id="L306">        LOG.debug(&quot;prData = &quot;+prData.toJSONString());</span>
+
+<span class="fc" id="L308">        Object repoObject = restClient.getAsObject(prData, &quot;repository&quot;);</span>
+<span class="pc bpc" id="L309" title="1 of 2 branches missed.">        if (repoObject == null) {</span>
+<span class="nc" id="L310">            LOG.info(&quot;No Repository Data Available For &quot;+repoUrl+&quot; ; Branch &quot;+branch+&quot;. Returning ...&quot;);</span>
+<span class="nc" id="L311">            return;</span>
+        }
+
+<span class="fc" id="L314">        Object pullRequestObject = restClient.getAsObject(repoObject, &quot;pullRequest&quot;);</span>
+
+<span class="pc bpc" id="L316" title="1 of 2 branches missed.">        if (pullRequestObject == null) {</span>
+<span class="nc" id="L317">            LOG.info(&quot;No Pull Request Data Available For &quot;+repoUrl+&quot; ; Branch &quot;+branch+&quot;. Returning ...&quot;);</span>
+<span class="nc" id="L318">            return;</span>
+        }
+
+<span class="pc bpc" id="L321" title="1 of 2 branches missed.">        if (pull.getMergedAt() &gt; 0) {</span>
+<span class="fc" id="L322">            Object commitsObject = restClient.getAsObject(pullRequestObject, &quot;commits&quot;);</span>
+<span class="fc" id="L323">            pull.setNumberOfChanges(restClient.getInteger(commitsObject, &quot;totalCount&quot;));</span>
+
+<span class="fc" id="L325">            List&lt;Commit&gt; prCommits = getPRCommits(repoUrl, commitsObject, pull, token);</span>
+<span class="fc" id="L326">            pull.setCommits(prCommits);</span>
+
+<span class="fc" id="L328">            Object commentsObject = restClient.getAsObject(pullRequestObject,&quot;comments&quot;);</span>
+<span class="fc" id="L329">            List&lt;Comment&gt; comments = getComments(repoUrl, commentsObject, token);</span>
+<span class="fc" id="L330">            pull.setComments(comments);</span>
+
+<span class="fc" id="L332">            Object reviewsObject = restClient.getAsObject(pullRequestObject,&quot;reviews&quot;);</span>
+<span class="fc" id="L333">            List&lt;Review&gt; reviews = getReviews(repoUrl, reviewsObject, token);</span>
+<span class="fc" id="L334">            pull.setReviews(reviews);</span>
+        }
+<span class="fc" id="L336">    }</span>
+
+    protected List&lt;Review&gt; getReviews(String repoUrl, Object reviewObject, String token) throws RestClientException {
+<span class="fc" id="L339">        List&lt;Review&gt; reviews = new ArrayList&lt;&gt;();</span>
+
+<span class="pc bpc" id="L341" title="1 of 2 branches missed.">        if (reviewObject == null) { return reviews; }</span>
+
+<span class="fc" id="L343">        JSONArray nodes = (JSONArray) restClient.getAsObject(reviewObject, &quot;nodes&quot;);</span>
+
+<span class="pc bpc" id="L345" title="1 of 2 branches missed.">        if (CollectionUtils.isEmpty(nodes)) { return reviews; }</span>
+
+<span class="fc bfc" id="L347" title="All 2 branches covered.">        for (Object n : nodes) {</span>
+<span class="fc" id="L348">            JSONObject node = (JSONObject) n;</span>
+<span class="fc" id="L349">            Review review = new Review();</span>
+<span class="fc" id="L350">            review.setState(restClient.getString(node, &quot;state&quot;));</span>
+<span class="fc" id="L351">            review.setBody(restClient.getString(node, &quot;bodyText&quot;));</span>
+<span class="fc" id="L352">            JSONObject authorObj = (JSONObject) node.get(&quot;author&quot;);</span>
+<span class="fc" id="L353">            review.setAuthor(restClient.getString(authorObj, &quot;login&quot;));</span>
+<span class="fc" id="L354">            String authorType = getAuthorType(repoUrl, review.getAuthor(), token);</span>
+<span class="pc bpc" id="L355" title="1 of 2 branches missed.">            if (!StringUtils.isEmpty(authorType)) {</span>
+<span class="nc" id="L356">                review.setAuthorType(authorType);</span>
+            }
+<span class="fc" id="L358">            String authorLDAPDN = getLDAPDN(repoUrl, review.getAuthor(), token);</span>
+<span class="fc bfc" id="L359" title="All 2 branches covered.">            if (!StringUtils.isEmpty(authorLDAPDN)) {</span>
+<span class="fc" id="L360">                review.setAuthorLDAPDN(authorLDAPDN);</span>
+            }
+<span class="fc" id="L362">            review.setCreatedAt(getTimeStampMills(restClient.getString(node, &quot;createdAt&quot;)));</span>
+<span class="fc" id="L363">            review.setUpdatedAt(getTimeStampMills(restClient.getString(node, &quot;updatedAt&quot;)));</span>
+<span class="fc" id="L364">            reviews.add(review);</span>
+<span class="fc" id="L365">        }</span>
+
+<span class="fc" id="L367">        return reviews;</span>
+    }
+
+    protected List&lt;Comment&gt; getComments(String repoUrl, Object commentsObject, String token) throws RestClientException {
+<span class="fc" id="L371">        List&lt;Comment&gt; comments = new ArrayList&lt;&gt;();</span>
+<span class="pc bpc" id="L372" title="1 of 2 branches missed.">        if (commentsObject == null) {</span>
+<span class="nc" id="L373">            return comments;</span>
+        }
+<span class="fc" id="L375">        JSONArray nodes = (JSONArray) restClient.getAsObject(commentsObject, &quot;nodes&quot;);</span>
+<span class="pc bpc" id="L376" title="1 of 2 branches missed.">        if (CollectionUtils.isEmpty(nodes)) { return comments; }</span>
+
+<span class="fc bfc" id="L378" title="All 2 branches covered.">        for (Object n : nodes) {</span>
+<span class="fc" id="L379">            JSONObject node = (JSONObject) n;</span>
+<span class="fc" id="L380">            Comment comment = new Comment();</span>
+<span class="fc" id="L381">            comment.setBody(restClient.getString(node, &quot;bodyText&quot;));</span>
+<span class="fc" id="L382">            comment.setUser(restClient.getString((JSONObject) node.get(&quot;author&quot;), &quot;login&quot;));</span>
+<span class="fc" id="L383">            String userType = getAuthorType(repoUrl, comment.getUser(), token);</span>
+<span class="pc bpc" id="L384" title="1 of 2 branches missed.">            if (!StringUtils.isEmpty(userType)) {</span>
+<span class="nc" id="L385">                comment.setUserType(userType);</span>
+            }
+<span class="fc" id="L387">            String userLDAPDN = getLDAPDN(repoUrl, comment.getUser(), token);</span>
+<span class="fc bfc" id="L388" title="All 2 branches covered.">            if (!StringUtils.isEmpty(userLDAPDN)) {</span>
+<span class="fc" id="L389">                comment.setUserLDAPDN(userLDAPDN);</span>
+            }
+<span class="fc" id="L391">            comment.setCreatedAt(getTimeStampMills(restClient.getString(node, &quot;createdAt&quot;)));</span>
+<span class="fc" id="L392">            comment.setUpdatedAt(getTimeStampMills(restClient.getString(node, &quot;updatedAt&quot;)));</span>
+<span class="fc" id="L393">            comment.setStatus(restClient.getString(node, &quot;state&quot;));</span>
+<span class="fc" id="L394">            comments.add(comment);</span>
+<span class="fc" id="L395">        }</span>
+
+<span class="fc" id="L397">        return comments;</span>
+    }
+
+    protected List&lt;Commit&gt; getPRCommits(String repoUrl, Object commitsObject, GitRequest pull, String token) {
+<span class="fc" id="L401">        List&lt;Commit&gt; prCommits = new ArrayList&lt;&gt;();</span>
+
+<span class="pc bpc" id="L403" title="1 of 2 branches missed.">        if (commitsObject == null) { return prCommits; }</span>
+
+<span class="fc" id="L405">        String prHeadSha = pull.getHeadSha();</span>
+
+<span class="fc" id="L407">        JSONArray nodes = (JSONArray) restClient.getAsObject(commitsObject, &quot;nodes&quot;);</span>
+
+<span class="pc bpc" id="L409" title="1 of 2 branches missed.">        if (CollectionUtils.isEmpty(nodes)) { return prCommits; }</span>
+
+<span class="fc" id="L411">        JSONObject lastCommitStatusObject = null;</span>
+<span class="fc" id="L412">        long lastCommitTime = 0L;</span>
+<span class="fc bfc" id="L413" title="All 2 branches covered.">        for (Object n : nodes) {</span>
+<span class="fc" id="L414">            JSONObject c = (JSONObject) n;</span>
+<span class="fc" id="L415">            JSONObject commit = (JSONObject) c.get(&quot;commit&quot;);</span>
+<span class="fc" id="L416">            String commitOid = restClient.getString(commit, &quot;oid&quot;);</span>
+
+<span class="fc" id="L418">            Commit newCommit = new Commit();</span>
+<span class="fc" id="L419">            newCommit.setScmRevisionNumber(commitOid);</span>
+<span class="fc" id="L420">            newCommit.setScmCommitLog(restClient.getString(commit, &quot;message&quot;));</span>
+<span class="fc" id="L421">            JSONObject author = (JSONObject) commit.get(&quot;author&quot;);</span>
+<span class="fc" id="L422">            JSONObject authorUserJSON = (JSONObject) author.get(&quot;user&quot;);</span>
+<span class="fc" id="L423">            newCommit.setScmAuthor(restClient.getString(author, &quot;name&quot;));</span>
+<span class="pc bpc" id="L424" title="1 of 2 branches missed.">            newCommit.setScmAuthorLogin((authorUserJSON == null) ? &quot;unknown&quot; : restClient.getString(authorUserJSON, &quot;login&quot;));</span>
+<span class="fc" id="L425">            String authorType = getAuthorType(repoUrl, newCommit.getScmAuthorLogin(), token);</span>
+<span class="pc bpc" id="L426" title="1 of 2 branches missed.">            if (!StringUtils.isEmpty(authorType)) {</span>
+<span class="nc" id="L427">                newCommit.setScmAuthorType(authorType);</span>
+            }
+<span class="fc" id="L429">            String authorLDAPDN = getLDAPDN(repoUrl, newCommit.getScmAuthorLogin(), token);</span>
+<span class="fc bfc" id="L430" title="All 2 branches covered.">            if (!StringUtils.isEmpty(authorLDAPDN)) {</span>
+<span class="fc" id="L431">                newCommit.setScmAuthorLDAPDN(authorLDAPDN);</span>
+            }
+
+<span class="fc" id="L434">            int changedFiles = NumberUtils.toInt(restClient.getString(commit, &quot;changedFiles&quot;));</span>
+<span class="fc" id="L435">            int deletions = NumberUtils.toInt(restClient.getString(commit, &quot;deletions&quot;));</span>
+<span class="fc" id="L436">            int additions = NumberUtils.toInt(restClient.getString(commit, &quot;additions&quot;));</span>
+<span class="fc" id="L437">            newCommit.setNumberOfChanges((long) changedFiles + deletions + additions);</span>
+
+<span class="fc" id="L439">            newCommit.setScmCommitTimestamp(getTimeStampMills(restClient.getString(author, &quot;date&quot;)));</span>
+<span class="fc" id="L440">            JSONObject statusObj = (JSONObject) commit.get(&quot;status&quot;);</span>
+
+<span class="pc bpc" id="L442" title="2 of 4 branches missed.">            if (statusObj != null &amp;&amp; lastCommitTime &lt;= newCommit.getScmCommitTimestamp()) {</span>
+<span class="fc" id="L443">                lastCommitTime = newCommit.getScmCommitTimestamp();</span>
+<span class="fc" id="L444">                lastCommitStatusObject = statusObj;</span>
+<span class="fc" id="L445">                setPRCommitStatus(statusObj, newCommit, pull);</span>
+            }
+
+            // Relies mostly on an open pr to find commits from other repos, branches in the database.
+<span class="fc" id="L449">            updateMatchingCommitsInDb(newCommit, pull);</span>
+
+<span class="fc" id="L451">            prCommits.add(newCommit);</span>
+<span class="fc" id="L452">        }</span>
+
+<span class="fc" id="L454">        updateCommitsWithPullNumber(pull);</span>
+
+<span class="pc bpc" id="L456" title="3 of 4 branches missed.">        if (StringUtils.isEmpty(prHeadSha) || CollectionUtils.isEmpty(pull.getCommitStatuses())) {</span>
+<span class="fc" id="L457">            List&lt;CommitStatus&gt; commitStatuses = getCommitStatuses(lastCommitStatusObject);</span>
+<span class="fc" id="L458">            List&lt;CommitStatus&gt; existingCommitStatusList = pull.getCommitStatuses();</span>
+<span class="pc bpc" id="L459" title="2 of 4 branches missed.">            if (!CollectionUtils.isEmpty(commitStatuses) &amp;&amp; !CollectionUtils.isEmpty(existingCommitStatusList)) {</span>
+<span class="nc" id="L460">                existingCommitStatusList.addAll(commitStatuses);</span>
+            } else {
+<span class="fc" id="L462">                pull.setCommitStatuses(commitStatuses);</span>
+            }
+        }
+
+<span class="fc" id="L466">        return prCommits;</span>
+    }
+
+    private void setPRCommitStatus(JSONObject statusObj, Commit newCommit, GitRequest pull) {
+<span class="fc" id="L470">        String prHeadSha = pull.getHeadSha();</span>
+<span class="pc bpc" id="L471" title="1 of 2 branches missed.">        if (Objects.equals(newCommit.getScmRevisionNumber(), prHeadSha)) {</span>
+<span class="nc" id="L472">            List&lt;CommitStatus&gt; commitStatuses = getCommitStatuses(statusObj);</span>
+<span class="nc" id="L473">            List&lt;CommitStatus&gt; existingCommitStatusList = pull.getCommitStatuses();</span>
+<span class="nc bnc" id="L474" title="All 4 branches missed.">            if (!CollectionUtils.isEmpty(commitStatuses) &amp;&amp; !CollectionUtils.isEmpty(existingCommitStatusList)) {</span>
+<span class="nc" id="L475">                existingCommitStatusList.addAll(commitStatuses);</span>
+            } else {
+<span class="nc" id="L477">                pull.setCommitStatuses(commitStatuses);</span>
+            }
+        }
+
+<span class="fc" id="L481">    }</span>
+
+    protected void updateMatchingCommitsInDb(Commit commit, GitRequest pull) {
+<span class="fc" id="L484">        long start = System.currentTimeMillis();</span>
+
+<span class="fc" id="L486">        List&lt;Commit&gt; commitsInDb</span>
+<span class="fc" id="L487">                = commitRepository.findAllByScmRevisionNumberAndScmAuthorIgnoreCaseAndScmCommitLogAndScmCommitTimestamp(commit.getScmRevisionNumber(), commit.getScmAuthor(), commit.getScmCommitLog(), commit.getScmCommitTimestamp());</span>
+<span class="fc bfc" id="L488" title="All 2 branches covered.">        if(CollectionUtils.isEmpty(commitsInDb)) { return; }</span>
+<span class="fc" id="L489">        commitsInDb.forEach(commitInDb -&gt; {</span>
+<span class="fc" id="L490">            commitInDb.setPullNumber(pull.getNumber());</span>
+<span class="fc" id="L491">            commitRepository.save(commitInDb);</span>
+<span class="fc" id="L492">        });</span>
+
+<span class="fc" id="L494">        long end = System.currentTimeMillis();</span>
+
+<span class="fc" id="L496">        LOG.debug(&quot;Time to make commitRepository call = &quot;+(end-start));</span>
+<span class="fc" id="L497">    }</span>
+
+    // Add pull number to merge commits for the PR if they don't have one, in case of rebase merge or squash merge
+    private void updateCommitsWithPullNumber(GitRequest pull) {
+<span class="fc" id="L501">        long start = System.currentTimeMillis();</span>
+<span class="fc" id="L502">        List&lt;Commit&gt; commitsInDb</span>
+<span class="fc" id="L503">                = commitRepository.findByScmRevisionNumber(pull.getScmRevisionNumber());</span>
+<span class="pc bpc" id="L504" title="1 of 2 branches missed.">        if(CollectionUtils.isEmpty(commitsInDb)) { return; }</span>
+<span class="nc" id="L505">        commitsInDb.forEach(commitInDb -&gt; {</span>
+<span class="nc" id="L506">            commitInDb.setPullNumber(pull.getNumber());</span>
+<span class="nc" id="L507">            commitRepository.save(commitInDb);</span>
+<span class="nc" id="L508">        });</span>
+<span class="nc" id="L509">        long end = System.currentTimeMillis();</span>
+<span class="nc" id="L510">        LOG.debug(&quot;Time to make commitRepository call = &quot;+(end-start));</span>
+<span class="nc" id="L511">    }</span>
+
+    protected List&lt;CommitStatus&gt; getCommitStatuses(JSONObject statusObject) throws RestClientException {
+<span class="fc" id="L514">        Map&lt;String, CommitStatus&gt; statuses = new HashMap&lt;&gt;();</span>
+
+<span class="pc bpc" id="L516" title="1 of 2 branches missed.">        if (statusObject == null) { return new ArrayList&lt;&gt;(); }</span>
+
+<span class="fc" id="L518">        JSONArray contexts = (JSONArray) statusObject.get(&quot;contexts&quot;);</span>
+
+<span class="pc bpc" id="L520" title="1 of 2 branches missed.">        if (CollectionUtils.isEmpty(contexts)) { return new ArrayList&lt;&gt;(); }</span>
+
+<span class="fc bfc" id="L522" title="All 2 branches covered.">        for (Object ctx : contexts) {</span>
+<span class="fc" id="L523">            String ctxStr = restClient.getString((JSONObject) ctx, &quot;context&quot;);</span>
+<span class="pc bpc" id="L524" title="2 of 4 branches missed.">            if ((ctxStr != null) &amp;&amp; !statuses.containsKey(ctxStr)) {</span>
+<span class="fc" id="L525">                CommitStatus status = new CommitStatus();</span>
+<span class="fc" id="L526">                status.setContext(ctxStr);</span>
+<span class="fc" id="L527">                status.setDescription(restClient.getString((JSONObject) ctx, &quot;description&quot;));</span>
+<span class="fc" id="L528">                status.setState(restClient.getString((JSONObject) ctx, &quot;state&quot;));</span>
+<span class="fc" id="L529">                statuses.put(ctxStr, status);</span>
+            }
+<span class="fc" id="L531">        }</span>
+
+<span class="fc" id="L533">        return new ArrayList&lt;&gt;(statuses.values());</span>
+    }
+
+    private long getTimeStampMills(String dateTime) {
+<span class="fc bfc" id="L537" title="All 2 branches covered.">        return StringUtils.isEmpty(dateTime) ? 0 : new DateTime(dateTime).getMillis();</span>
+    }
+
+    private boolean isValidEvent(String action) {
+<span class="nc" id="L541">        List&lt;PullRequestEvent&gt; validPullRequestEvents = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L542">        Collections.addAll(validPullRequestEvents,PullRequestEvent.Opened,PullRequestEvent.Edited,PullRequestEvent.Closed,</span>
+                PullRequestEvent.Reopened,
+                PullRequestEvent.Merged,
+                PullRequestEvent.Synchronize);
+<span class="nc" id="L546">        return validPullRequestEvents.contains(PullRequestEvent.fromString(action));</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.3.201901230119</span></div></body></html>

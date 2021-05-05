@@ -1,0 +1,700 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DashboardRemoteRequest.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.capitalone.dashboard:api</a> &gt; <a href="index.source.html" class="el_package">com.capitalone.dashboard.request</a> &gt; <span class="el_source">DashboardRemoteRequest.java</span></div><h1>DashboardRemoteRequest.java</h1><pre class="source lang-java linenums">package com.capitalone.dashboard.request;
+
+
+import com.capitalone.dashboard.misc.HygieiaException;
+import com.capitalone.dashboard.model.Collector;
+import com.capitalone.dashboard.model.CollectorItem;
+import com.capitalone.dashboard.model.CollectorType;
+import com.capitalone.dashboard.model.Owner;
+import com.capitalone.dashboard.util.GitHubParsedUrl;
+import org.hibernate.validator.constraints.NotEmpty;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Pattern;
+import javax.validation.constraints.Size;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+<span class="fc" id="L21">public class DashboardRemoteRequest extends BaseRequest {</span>
+    @Valid
+    private DashboardMetaData metaData;
+
+<span class="fc" id="L25">    @Valid</span>
+    private List&lt;FeatureEntry&gt; featureEntries = new ArrayList&lt;&gt;();
+
+<span class="fc" id="L28">    @Valid</span>
+    private List&lt;CodeRepoEntry&gt; codeRepoEntries = new ArrayList&lt;&gt;();
+
+<span class="fc" id="L31">    @Valid</span>
+    private List&lt;BuildEntry&gt; buildEntries = new ArrayList&lt;&gt;();
+
+<span class="fc" id="L34">    @Valid</span>
+    private List&lt;StaticCodeEntry&gt; staticCodeEntries = new ArrayList&lt;&gt;();
+
+<span class="fc" id="L37">    @Valid</span>
+    private List&lt;SecurityScanEntry&gt; securityScanEntries = new ArrayList&lt;&gt;();
+
+<span class="fc" id="L40">    @Valid</span>
+    private List&lt;DeploymentEntry&gt; deploymentEntries = new ArrayList&lt;&gt;();
+
+<span class="fc" id="L43">    @Valid</span>
+    private List&lt;LibraryScanEntry&gt; libraryScanEntries = new ArrayList&lt;&gt;();
+
+<span class="fc" id="L46">    @Valid</span>
+    private List&lt;FunctionalTestEntry&gt; functionalTestEntries = new ArrayList&lt;&gt;();
+
+<span class="fc" id="L49">    @Valid</span>
+    private List&lt;ArtifactEntry&gt; artifactEntries = new ArrayList&lt;&gt;();
+
+<span class="fc" id="L52">    @Valid</span>
+    private List&lt;PerformanceTestEntry&gt; performanceTestEntries = new ArrayList&lt;&gt;();
+
+<span class="fc" id="L55">    @Valid</span>
+    private List&lt;InfraStructureScanEntry&gt; infraStructureScanEntries = new ArrayList&lt;&gt;();
+
+    /**
+     * Dashboard Metadata
+     */
+
+<span class="fc" id="L62">    public static class DashboardMetaData {</span>
+        @NotNull
+        private String template;
+
+        @NotNull
+        private String type;
+
+        @NotNull
+        @Size(min = 6, max = 50)
+        @Pattern(message = &quot;Special character(s) found&quot;, regexp = &quot;^[a-zA-Z0-9 ]*$&quot;)
+        private String title;
+
+        @NotNull
+        private String applicationName;
+
+        @NotNull
+        private String componentName;
+
+        Owner owner;
+
+        List&lt;Owner&gt; owners;
+
+        private String businessService;
+
+        private String businessApplication;
+
+<span class="fc" id="L88">        private Map&lt;String, String&gt; properties = new HashMap&lt;&gt;();</span>
+
+        public String getTemplate() {
+<span class="fc" id="L91">            return template;</span>
+        }
+
+        public void setTemplate(String template) {
+<span class="fc" id="L95">            this.template = template;</span>
+<span class="fc" id="L96">        }</span>
+
+        public String getTitle() {
+<span class="fc" id="L99">            return title;</span>
+        }
+
+        public void setTitle(String title) {
+<span class="fc" id="L103">            this.title = title;</span>
+<span class="fc" id="L104">        }</span>
+
+        public String getApplicationName() {
+<span class="fc" id="L107">            return applicationName;</span>
+        }
+
+        public void setApplicationName(String applicationName) {
+<span class="fc" id="L111">            this.applicationName = applicationName;</span>
+<span class="fc" id="L112">        }</span>
+
+        public String getComponentName() {
+<span class="fc" id="L115">            return componentName;</span>
+        }
+
+        public void setComponentName(String componentName) {
+<span class="fc" id="L119">            this.componentName = componentName;</span>
+<span class="fc" id="L120">        }</span>
+
+        public String getBusinessService() {
+<span class="fc" id="L123">            return businessService;</span>
+        }
+
+        public void setBusinessService(String businessService) {
+<span class="fc" id="L127">            this.businessService = businessService;</span>
+<span class="fc" id="L128">        }</span>
+
+        public String getBusinessApplication() {
+<span class="fc" id="L131">            return businessApplication;</span>
+        }
+
+        public void setBusinessApplication(String businessApplication) {
+<span class="fc" id="L135">            this.businessApplication = businessApplication;</span>
+<span class="fc" id="L136">        }</span>
+
+        public Owner getOwner() {
+<span class="fc" id="L139">            return owner;</span>
+        }
+
+        public List&lt;Owner&gt; getOwners() {
+<span class="fc" id="L143">            return owners;</span>
+        }
+
+        public void setOwner(Owner owner) {
+<span class="fc" id="L147">            this.owner = owner;</span>
+<span class="fc" id="L148">        }</span>
+
+        public void setOwners(List&lt;Owner&gt; owners) {
+<span class="fc" id="L151">            this.owners = owners;</span>
+<span class="fc" id="L152">        }</span>
+
+        public String getType() {
+<span class="fc" id="L155">            return type;</span>
+        }
+
+        public void setType(String type) {
+<span class="fc" id="L159">            this.type = type;</span>
+<span class="fc" id="L160">        }</span>
+
+<span class="nc" id="L162">        public Map&lt;String, String&gt; getProperties() { return properties; }</span>
+
+<span class="fc" id="L164">        public void setProperties(Map&lt;String, String&gt; properties) { this.properties = properties; }</span>
+    }
+
+    /**
+     * An abstract class to hold the entries: Jira project, github project, build job etc.
+     */
+
+<span class="fc" id="L171">    public static abstract class Entry {</span>
+        @NotNull
+        String toolName;
+
+        @NotNull
+        String description;
+
+<span class="fc" id="L178">        boolean pushed = false;</span>
+
+        String niceName;
+
+<span class="fc" id="L182">        @NotEmpty</span>
+        Map&lt;String, Object&gt; options = new HashMap&lt;&gt;();
+
+        public abstract CollectorType getType();
+
+        public String getToolName() {
+<span class="fc" id="L188">            return toolName;</span>
+        }
+
+        public void setToolName(String toolName) {
+<span class="fc" id="L192">            this.toolName = toolName;</span>
+<span class="fc" id="L193">        }</span>
+
+        public String getDescription() {
+<span class="nc" id="L196">            return description;</span>
+        }
+
+        public void setDescription(String description) {
+<span class="nc" id="L200">            this.description = description;</span>
+<span class="nc" id="L201">        }</span>
+
+        public boolean isPushed() {
+<span class="fc" id="L204">            return pushed;</span>
+        }
+
+        public void setPushed(boolean pushed) {
+<span class="nc" id="L208">            this.pushed = pushed;</span>
+<span class="nc" id="L209">        }</span>
+
+<span class="nc" id="L211">        public String getNiceName() { return niceName; }</span>
+
+<span class="nc" id="L213">        public void setNiceName(String niceName) { this.niceName = niceName; }</span>
+
+        public CollectorItem toCollectorItem(Collector collector) throws HygieiaException{
+<span class="pc bpc" id="L216" title="1 of 2 branches missed.">            if (options.keySet().containsAll(collector.getUniqueFields().keySet())) {</span>
+<span class="fc" id="L217">                CollectorItem collectorItem = new CollectorItem();</span>
+<span class="fc" id="L218">                collectorItem.setEnabled(true);</span>
+<span class="fc" id="L219">                collectorItem.setPushed(isPushed());</span>
+<span class="fc" id="L220">                collectorItem.setDescription(description);</span>
+<span class="fc" id="L221">                collectorItem.setNiceName(niceName);</span>
+<span class="fc bfc" id="L222" title="All 2 branches covered.">                for (String key : options.keySet()) {</span>
+<span class="pc bpc" id="L223" title="1 of 2 branches missed.">                    if (collector.getAllFields().keySet().contains(key)) {</span>
+<span class="fc" id="L224">                        collectorItem.getOptions().put(key, options.get(key));</span>
+                    } else {
+<span class="nc" id="L226">                        throw new HygieiaException(toolName + &quot; collector does not support field: &quot; + key, HygieiaException.COLLECTOR_ITEM_CREATE_ERROR);</span>
+                    }
+<span class="fc" id="L228">                }</span>
+<span class="fc" id="L229">                return collectorItem;</span>
+            } else {
+<span class="nc" id="L231">                throw new HygieiaException(&quot;Missing required fields. &quot; + toolName + &quot; collector required fields are: &quot; + String.join(&quot;, &quot;, collector.getUniqueFields().keySet()), HygieiaException.COLLECTOR_ITEM_CREATE_ERROR);</span>
+            }
+        }
+
+        public abstract String getWidgetId();
+
+        public abstract String getWidgetName();
+
+        public abstract Map&lt;String, Object&gt; toWidgetOptions();
+
+        public Map&lt;String, Object&gt; getOptions() {
+<span class="fc" id="L242">            return options;</span>
+        }
+
+        public void setOptions(Map&lt;String, Object&gt; options) {
+<span class="fc" id="L246">            this.options = options;</span>
+<span class="fc" id="L247">        }</span>
+    }
+
+    /**
+     * Details for creating Feature widget
+     */
+<span class="fc" id="L253">    public static class FeatureEntry extends Entry {</span>
+
+        @Override
+        public CollectorType getType() {
+<span class="nc" id="L257">            return CollectorType.AgileTool;</span>
+        }
+
+        @Override
+        public String getWidgetId() {
+<span class="fc" id="L262">            return &quot;feature0&quot;;</span>
+        }
+
+        @Override
+        public String getWidgetName() {
+<span class="nc" id="L267">            return &quot;feature&quot;;</span>
+        }
+
+        @Override
+        public Map&lt;String, Object&gt; toWidgetOptions() {
+<span class="fc" id="L272">            Map&lt;String, Object&gt; opts = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L273">            opts.put(&quot;id&quot;, getWidgetId());</span>
+<span class="fc" id="L274">            options.keySet().forEach(key -&gt; {</span>
+<span class="fc" id="L275">                opts.put(key, options.get(key));</span>
+<span class="fc" id="L276">            });</span>
+<span class="fc" id="L277">            return opts;</span>
+        }
+    }
+
+    /**
+     * Details for creating Code Repo widget
+     */
+<span class="fc" id="L284">    public static class CodeRepoEntry extends Entry {</span>
+
+        @Override
+        public CollectorType getType() {
+<span class="fc" id="L288">            return CollectorType.SCM;</span>
+        }
+
+
+        @Override
+        public String getWidgetId() {
+<span class="nc" id="L294">            return &quot;repo0&quot;;</span>
+        }
+
+        @Override
+        public String getWidgetName() {
+<span class="fc" id="L299">            return &quot;repo&quot;;</span>
+        }
+
+        @Override
+        public Map&lt;String, Object&gt; toWidgetOptions() {
+<span class="fc" id="L304">            Map&lt;String, Object&gt; opts = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L305">            opts.put(&quot;name&quot;, &quot;repo&quot;);</span>
+<span class="fc" id="L306">            opts.put(&quot;id&quot;, &quot;repo0&quot;);</span>
+<span class="fc" id="L307">            options.keySet().forEach(key -&gt; {</span>
+<span class="fc bfc" id="L308" title="All 2 branches covered.">                if (&quot;url&quot;.equalsIgnoreCase(key)) {</span>
+<span class="fc" id="L309">                    GitHubParsedUrl gitHubParsed = new GitHubParsedUrl((String) options.get(key));</span>
+<span class="fc" id="L310">                    String repoUrl = gitHubParsed.getUrl();</span>
+<span class="fc" id="L311">                    opts.put(key, repoUrl);</span>
+<span class="fc" id="L312">                } else {</span>
+<span class="fc" id="L313">                    opts.put(key, options.get(key));</span>
+                }
+<span class="fc" id="L315">            });</span>
+<span class="fc" id="L316">            Map&lt;String, String&gt; scm = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L317">            scm.put(&quot;name&quot;, toolName);</span>
+<span class="fc" id="L318">            scm.put(&quot;value&quot;, toolName);</span>
+<span class="fc" id="L319">            opts.put(&quot;scm&quot;, scm);</span>
+<span class="fc" id="L320">            return opts;</span>
+        }
+    }
+
+    /**
+     * Details for creating Build widget
+     */
+<span class="fc" id="L327">    public static class BuildEntry extends Entry {</span>
+
+        @Override
+        public CollectorType getType() {
+<span class="fc" id="L331">            return CollectorType.Build;</span>
+        }
+
+        @Override
+        public String getWidgetId() {
+<span class="fc" id="L336">            return &quot;build0&quot;;</span>
+        }
+
+        @Override
+        public String getWidgetName() {
+<span class="fc" id="L341">            return &quot;build&quot;;</span>
+        }
+
+        @Override
+        public Map&lt;String, Object&gt; toWidgetOptions() {
+<span class="fc" id="L346">            Map&lt;String, Object&gt; opts = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L347">            opts.put(&quot;id&quot;, getWidgetId());</span>
+<span class="fc" id="L348">            opts.put(&quot;buildDurationThreshold&quot;, 3);</span>
+<span class="fc" id="L349">            opts.put(&quot;consecutiveFailureThreshold&quot;,5);</span>
+<span class="fc" id="L350">            return opts;</span>
+        }
+
+    }
+
+    /**
+     * Details for creating Static Code Analysis in Code Quality Widget
+     */
+
+<span class="fc" id="L359">    public static class StaticCodeEntry extends Entry {</span>
+
+        @Override
+        public CollectorType getType() {
+<span class="fc" id="L363">            return CollectorType.CodeQuality;</span>
+        }
+
+        @Override
+        public String getWidgetId() {
+<span class="fc" id="L368">            return &quot;codeanalysis0&quot;;</span>
+        }
+
+        @Override
+        public String getWidgetName() {
+<span class="fc" id="L373">            return &quot;codeanalysis&quot;;</span>
+        }
+
+        @Override
+        public Map&lt;String, Object&gt; toWidgetOptions() {
+<span class="fc" id="L378">            Map&lt;String, Object&gt; opts = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L379">            opts.put(&quot;id&quot;, getWidgetId());</span>
+<span class="fc" id="L380">            return opts;</span>
+        }
+    }
+
+    /**
+     * Entry to create Library Scan in Code Quality Widget
+     *
+     */
+<span class="fc" id="L388">    public static class LibraryScanEntry extends Entry {</span>
+
+        @Override
+        public CollectorType getType() {
+<span class="fc" id="L392">            return CollectorType.LibraryPolicy;</span>
+        }
+
+        @Override
+        public String getWidgetId() {
+<span class="fc" id="L397">            return &quot;codeanalysis0&quot;;</span>
+        }
+
+        @Override
+        public String getWidgetName() {
+<span class="fc" id="L402">            return &quot;codeanalysis&quot;;</span>
+        }
+
+        @Override
+        public Map&lt;String, Object&gt; toWidgetOptions() {
+<span class="fc" id="L407">            Map&lt;String, Object&gt; opts = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L408">            opts.put(&quot;id&quot;, getWidgetId());</span>
+<span class="fc" id="L409">            return opts;</span>
+        }
+
+    }
+
+    /**
+     * Entry to create Security Scan in Code Quality Widget
+     */
+<span class="nc" id="L417">    public static class SecurityScanEntry extends Entry {</span>
+
+        @Override
+        public CollectorType getType() {
+<span class="nc" id="L421">            return CollectorType.StaticSecurityScan;</span>
+        }
+
+        @Override
+        public String getWidgetId() {
+<span class="nc" id="L426">            return &quot;codeanalysis0&quot;;</span>
+        }
+
+        @Override
+        public String getWidgetName() {
+<span class="nc" id="L431">            return &quot;codeanalysis&quot;;</span>
+        }
+
+        @Override
+        public Map&lt;String, Object&gt; toWidgetOptions() {
+<span class="nc" id="L436">            Map&lt;String, Object&gt; opts = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L437">            opts.put(&quot;id&quot;, getWidgetId());</span>
+<span class="nc" id="L438">            return opts;</span>
+        }
+    }
+
+    /**
+     * Entry to create Functional Test in Code Quality Widget
+     */
+<span class="nc" id="L445">    public static class FunctionalTestEntry extends Entry {</span>
+
+        @Override
+        public CollectorType getType() {
+<span class="nc" id="L449">            return CollectorType.Test;</span>
+        }
+
+        @Override
+        public String getWidgetId() {
+<span class="nc" id="L454">            return &quot;codeanalysis0&quot;;</span>
+        }
+
+        @Override
+        public String getWidgetName() {
+<span class="nc" id="L459">            return &quot;codeanalysis&quot;;</span>
+        }
+
+        @Override
+        public Map&lt;String, Object&gt; toWidgetOptions() {
+<span class="nc" id="L464">            Map&lt;String, Object&gt; opts = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L465">            opts.put(&quot;id&quot;, getWidgetId());</span>
+<span class="nc" id="L466">            return opts;</span>
+        }
+    }
+
+    /**
+     * Entry to create Functional Test in Code Quality Widget
+     */
+<span class="nc" id="L473">    public static class PerformanceTestEntry extends Entry {</span>
+
+        @Override
+        public CollectorType getType() {
+<span class="nc" id="L477">            return CollectorType.Test;</span>
+        }
+
+        @Override
+        public String getWidgetId() {
+<span class="nc" id="L482">            return &quot;codeanalysis0&quot;;</span>
+        }
+
+        @Override
+        public String getWidgetName() {
+<span class="nc" id="L487">            return &quot;codeanalysis&quot;;</span>
+        }
+
+        @Override
+        public Map&lt;String, Object&gt; toWidgetOptions() {
+<span class="nc" id="L492">            Map&lt;String, Object&gt; opts = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L493">            opts.put(&quot;id&quot;, getWidgetId());</span>
+<span class="nc" id="L494">            return opts;</span>
+        }
+    }
+
+
+    /**
+     * Entry to create Functional Test in Code Quality Widget
+     */
+<span class="nc" id="L502">    public static class ArtifactEntry extends Entry {</span>
+
+        @Override
+        public CollectorType getType() {
+<span class="nc" id="L506">            return CollectorType.Artifact;</span>
+        }
+
+        @Override
+        public String getWidgetId() {
+<span class="nc" id="L511">            return &quot;build0&quot;;</span>
+        }
+
+        @Override
+        public String getWidgetName() {
+<span class="nc" id="L516">            return &quot;build&quot;;</span>
+        }
+
+        @Override
+        public Map&lt;String, Object&gt; toWidgetOptions() {
+<span class="nc" id="L521">            Map&lt;String, Object&gt; opts = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L522">            opts.put(&quot;id&quot;, getWidgetId());</span>
+<span class="nc" id="L523">            return opts;</span>
+        }
+    }
+
+
+    /**
+     * Entry to create Deployment widget
+     */
+<span class="nc" id="L531">    public static class DeploymentEntry extends Entry {</span>
+
+        @Override
+        public CollectorType getType() {
+<span class="nc" id="L535">            return CollectorType.Deployment;</span>
+        }
+
+        @Override
+        public String getWidgetId() {
+<span class="nc" id="L540">            return &quot;deploy0&quot;;</span>
+        }
+
+        @Override
+        public String getWidgetName() {
+<span class="nc" id="L545">            return &quot;deploy&quot;;</span>
+        }
+
+        @Override
+        public Map&lt;String, Object&gt; toWidgetOptions() {
+<span class="nc" id="L550">            Map&lt;String, Object&gt; opts = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L551">            opts.put(&quot;id&quot;, getWidgetId());</span>
+<span class="nc" id="L552">            return opts;</span>
+        }
+
+    }
+
+    /**
+     * Entry to create InfraStructureScan widget
+     */
+<span class="nc" id="L560">    public static class InfraStructureScanEntry extends Entry {</span>
+
+        @Override
+        public CollectorType getType() {
+<span class="nc" id="L564">            return CollectorType.InfrastructureScan;</span>
+        }
+
+        @Override
+        public String getWidgetId() {
+<span class="nc" id="L569">            return &quot;infrascan0&quot;;</span>
+        }
+
+        @Override
+        public String getWidgetName() {
+<span class="nc" id="L574">            return &quot;infrascan&quot;;</span>
+        }
+
+        @Override
+        public Map&lt;String, Object&gt; toWidgetOptions() {
+<span class="nc" id="L579">            Map&lt;String, Object&gt; opts = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L580">            opts.put(&quot;id&quot;, getWidgetId());</span>
+<span class="nc" id="L581">            return opts;</span>
+        }
+    }
+
+    // Getters and setters
+
+    public DashboardMetaData getMetaData() {
+<span class="fc" id="L588">        return metaData;</span>
+    }
+
+    public void setMetaData(DashboardMetaData metaData) {
+<span class="fc" id="L592">        this.metaData = metaData;</span>
+<span class="fc" id="L593">    }</span>
+
+    public List&lt;FeatureEntry&gt; getFeatureEntries() {
+<span class="nc" id="L596">        return featureEntries;</span>
+    }
+
+    public void setFeatureEntries(List&lt;FeatureEntry&gt; featureEntries) {
+<span class="fc" id="L600">        this.featureEntries = featureEntries;</span>
+<span class="fc" id="L601">    }</span>
+
+    public List&lt;CodeRepoEntry&gt; getCodeRepoEntries() {
+<span class="fc" id="L604">        return codeRepoEntries;</span>
+    }
+
+    public void setCodeRepoEntries(List&lt;CodeRepoEntry&gt; codeRepoEntries) {
+<span class="fc" id="L608">        this.codeRepoEntries = codeRepoEntries;</span>
+<span class="fc" id="L609">    }</span>
+
+    public List&lt;BuildEntry&gt; getBuildEntries() {
+<span class="nc" id="L612">        return buildEntries;</span>
+    }
+
+    public void setBuildEntries(List&lt;BuildEntry&gt; buildEntries) {
+<span class="fc" id="L616">        this.buildEntries = buildEntries;</span>
+<span class="fc" id="L617">    }</span>
+
+    public List&lt;StaticCodeEntry&gt; getStaticCodeEntries() {
+<span class="nc" id="L620">        return staticCodeEntries;</span>
+    }
+
+    public void setStaticCodeEntries(List&lt;StaticCodeEntry&gt; staticCodeEntries) {
+<span class="fc" id="L624">        this.staticCodeEntries = staticCodeEntries;</span>
+<span class="fc" id="L625">    }</span>
+
+    public List&lt;SecurityScanEntry&gt; getSecurityScanEntries() {
+<span class="nc" id="L628">        return securityScanEntries;</span>
+    }
+
+    public void setSecurityScanEntries(List&lt;SecurityScanEntry&gt; securityScanEntries) {
+<span class="fc" id="L632">        this.securityScanEntries = securityScanEntries;</span>
+<span class="fc" id="L633">    }</span>
+
+    public List&lt;DeploymentEntry&gt; getDeploymentEntries() {
+<span class="nc" id="L636">        return deploymentEntries;</span>
+    }
+
+    public void setDeploymentEntries(List&lt;DeploymentEntry&gt; deploymentEntries) {
+<span class="fc" id="L640">        this.deploymentEntries = deploymentEntries;</span>
+<span class="fc" id="L641">    }</span>
+
+    public List&lt;LibraryScanEntry&gt; getLibraryScanEntries() {
+<span class="nc" id="L644">        return libraryScanEntries;</span>
+    }
+
+    public void setLibraryScanEntries(List&lt;LibraryScanEntry&gt; libraryScanEntries) {
+<span class="fc" id="L648">        this.libraryScanEntries = libraryScanEntries;</span>
+<span class="fc" id="L649">    }</span>
+
+    public List&lt;FunctionalTestEntry&gt; getFunctionalTestEntries() {
+<span class="nc" id="L652">        return functionalTestEntries;</span>
+    }
+
+    public void setFunctionalTestEntries(List&lt;FunctionalTestEntry&gt; functionalTestEntries) {
+<span class="fc" id="L656">        this.functionalTestEntries = functionalTestEntries;</span>
+<span class="fc" id="L657">    }</span>
+
+    public List&lt;ArtifactEntry&gt; getArtifactEntries() {
+<span class="nc" id="L660">        return artifactEntries;</span>
+    }
+
+    public void setArtifactEntries(List&lt;ArtifactEntry&gt; artifactEntries) {
+<span class="fc" id="L664">        this.artifactEntries = artifactEntries;</span>
+<span class="fc" id="L665">    }</span>
+
+    public List&lt;PerformanceTestEntry&gt; getPerformanceTestEntries() {
+<span class="nc" id="L668">        return performanceTestEntries;</span>
+    }
+
+    public void setPerformanceTestEntries(List&lt;PerformanceTestEntry&gt; performanceTestEntries) {
+<span class="fc" id="L672">        this.performanceTestEntries = performanceTestEntries;</span>
+<span class="fc" id="L673">    }</span>
+
+    public List&lt;InfraStructureScanEntry&gt; getInfraStructureScanEntries() {
+<span class="nc" id="L676">        return infraStructureScanEntries;</span>
+    }
+
+    public void setInfraStructureScanEntries(List&lt;InfraStructureScanEntry&gt; infraStructureScanEntries) {
+<span class="fc" id="L680">        this.infraStructureScanEntries = infraStructureScanEntries;</span>
+<span class="fc" id="L681">    }</span>
+
+
+    public List&lt;Entry&gt; getAllEntries() {
+<span class="fc" id="L685">        List&lt;Entry&gt; all = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L686">        all.addAll(buildEntries);</span>
+<span class="fc" id="L687">        all.addAll(codeRepoEntries);</span>
+<span class="fc" id="L688">        all.addAll(staticCodeEntries);</span>
+<span class="fc" id="L689">        all.addAll(libraryScanEntries);</span>
+<span class="fc" id="L690">        all.addAll(securityScanEntries);</span>
+<span class="fc" id="L691">        all.addAll(functionalTestEntries);</span>
+<span class="fc" id="L692">        all.addAll(deploymentEntries);</span>
+<span class="fc" id="L693">        all.addAll(featureEntries);</span>
+<span class="fc" id="L694">        all.addAll(artifactEntries);</span>
+<span class="fc" id="L695">        all.addAll(performanceTestEntries);</span>
+<span class="fc" id="L696">        all.addAll(infraStructureScanEntries);</span>
+<span class="fc" id="L697">        return all;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.3.201901230119</span></div></body></html>

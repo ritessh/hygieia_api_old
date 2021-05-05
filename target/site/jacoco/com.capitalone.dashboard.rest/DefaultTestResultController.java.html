@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DefaultTestResultController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.capitalone.dashboard:api</a> &gt; <a href="index.source.html" class="el_package">com.capitalone.dashboard.rest</a> &gt; <span class="el_source">DefaultTestResultController.java</span></div><h1>DefaultTestResultController.java</h1><pre class="source lang-java linenums">package com.capitalone.dashboard.rest;
+
+import com.capitalone.dashboard.editors.CaseInsensitiveTestSuiteTypeEditor;
+import com.capitalone.dashboard.misc.HygieiaException;
+import com.capitalone.dashboard.model.CodeQualityType;
+import com.capitalone.dashboard.model.DataResponse;
+import com.capitalone.dashboard.model.TestCreateRequest;
+import com.capitalone.dashboard.model.TestResult;
+import com.capitalone.dashboard.request.PerfTestDataCreateRequest;
+import com.capitalone.dashboard.request.TestDataCreateRequest;
+import com.capitalone.dashboard.request.TestResultRequest;
+import com.capitalone.dashboard.service.TestResultService;
+import com.capitalone.dashboard.util.CommonConstants;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
+
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+import static org.springframework.web.bind.annotation.RequestMethod.GET;
+import static org.springframework.web.bind.annotation.RequestMethod.POST;
+
+@RestController
+public class DefaultTestResultController {
+    private final HttpServletRequest httpServletRequest;
+    private final TestResultService testResultService;
+
+<span class="fc" id="L38">    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultTestResultController.class);</span>
+
+    @Autowired
+<span class="fc" id="L41">    public DefaultTestResultController(HttpServletRequest httpServletRequest, TestResultService testResultService) {</span>
+<span class="fc" id="L42">        this.httpServletRequest = httpServletRequest;</span>
+<span class="fc" id="L43">        this.testResultService = testResultService;</span>
+<span class="fc" id="L44">    }</span>
+
+    @InitBinder
+    public void initBinder(WebDataBinder binder) {
+<span class="fc" id="L48">        binder.registerCustomEditor(CodeQualityType.class, new CaseInsensitiveTestSuiteTypeEditor());</span>
+<span class="fc" id="L49">    }</span>
+
+    @RequestMapping(value = &quot;/quality/test&quot;, method = GET, produces = APPLICATION_JSON_VALUE)
+    public DataResponse&lt;Iterable&lt;TestResult&gt;&gt; qualityData(@Valid TestResultRequest request) {
+<span class="fc" id="L53">        return testResultService.search(request);</span>
+    }
+
+
+    @RequestMapping(value = &quot;/quality/test&quot;, method = POST,
+                consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
+        public ResponseEntity&lt;String&gt; createTest(@Valid @RequestBody TestDataCreateRequest request) throws HygieiaException {
+<span class="nc" id="L60">            String response = testResultService.create(request);</span>
+<span class="nc" id="L61">            return ResponseEntity</span>
+<span class="nc" id="L62">                    .status(HttpStatus.CREATED)</span>
+<span class="nc" id="L63">                    .body(response);</span>
+    }
+
+    @RequestMapping(value = &quot;/v2/quality/test&quot;, method = POST,
+            consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
+    public ResponseEntity&lt;String&gt; createTestV2(@Valid @RequestBody TestDataCreateRequest request) throws HygieiaException {
+<span class="nc" id="L69">        String response = testResultService.createV2(request);</span>
+<span class="nc" id="L70">        return ResponseEntity</span>
+<span class="nc" id="L71">                .status(HttpStatus.CREATED)</span>
+<span class="nc" id="L72">                .body(response);</span>
+    }
+
+    @RequestMapping(value = &quot;/quality/testresult&quot;, method = POST,
+            consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
+    public ResponseEntity&lt;String&gt; createPerfTest(@Valid @RequestBody PerfTestDataCreateRequest request) throws HygieiaException {
+<span class="nc" id="L78">        String response = testResultService.createPerf(request);</span>
+<span class="nc" id="L79">        return ResponseEntity</span>
+<span class="nc" id="L80">                .status(HttpStatus.CREATED)</span>
+<span class="nc" id="L81">                .body(response);</span>
+    }
+
+    @RequestMapping(value = &quot;/v2/quality/testresult&quot;, method = POST,
+            consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
+    public ResponseEntity&lt;String&gt; createPerfTestV2(@Valid @RequestBody PerfTestDataCreateRequest request) throws HygieiaException {
+<span class="nc" id="L87">        String response = testResultService.createPerfV2(request);</span>
+<span class="nc" id="L88">        return ResponseEntity</span>
+<span class="nc" id="L89">                .status(HttpStatus.CREATED)</span>
+<span class="nc" id="L90">                .body(response);</span>
+    }
+
+    @RequestMapping(value = &quot;/quality/test-result&quot;, method = POST,
+            consumes = &quot;application/json;v=3&quot;, produces = APPLICATION_JSON_VALUE)
+    public ResponseEntity&lt;String&gt; createTest(@Valid @RequestBody TestCreateRequest request) throws HygieiaException {
+<span class="nc" id="L96">        String correlation_id = httpServletRequest.getHeader(CommonConstants.HEADER_CLIENT_CORRELATION_ID);</span>
+<span class="nc" id="L97">        String requester = httpServletRequest.getHeader(CommonConstants.HEADER_API_USER);</span>
+<span class="nc" id="L98">        request.setClientReference(correlation_id);</span>
+<span class="nc" id="L99">        String response = testResultService.createTest(request);</span>
+
+        //temporary fix to ensure backward compatibility
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        boolean success = !StringUtils.containsIgnoreCase(response, &quot;Hygieia does not support&quot;);</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        HttpStatus httpStatus = success ? HttpStatus.CREATED : HttpStatus.BAD_REQUEST;</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        String response_status = success ? &quot;success&quot; : &quot;failed&quot;;</span>
+<span class="nc" id="L105">        LOGGER.info(&quot;correlation_id=&quot; + correlation_id + &quot;, application=hygieia, service=api, uri=&quot; + httpServletRequest.getRequestURI() +</span>
+<span class="nc" id="L106">                        &quot;, requester=&quot; + requester + &quot;, response_status=&quot; + response_status + &quot;, response_code=&quot; + httpStatus.value() +</span>
+<span class="nc" id="L107">                        &quot;, response_status_message=&quot; + response + &quot;, test_type=&quot; + request.getTestType() +</span>
+<span class="nc" id="L108">                        &quot;, test_source_format=&quot;+request.getSourceFormat() + &quot;, test_source=&quot; + request.getSource() +</span>
+<span class="nc" id="L109">                        &quot;, target_app_name=&quot; + request.getTargetAppName() + &quot;, target_service_name=&quot; + request.getTargetServiceName() +</span>
+<span class="nc" id="L110">                        &quot;, test_job_url=&quot; + request.getJobUrl());</span>
+
+<span class="nc" id="L112">        return ResponseEntity</span>
+<span class="nc" id="L113">                .status(httpStatus)</span>
+<span class="nc" id="L114">                .body(response);</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.3.201901230119</span></div></body></html>

@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DashboardRequest.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.capitalone.dashboard:api</a> &gt; <a href="index.source.html" class="el_package">com.capitalone.dashboard.request</a> &gt; <span class="el_source">DashboardRequest.java</span></div><h1>DashboardRequest.java</h1><pre class="source lang-java linenums">package com.capitalone.dashboard.request;
+
+import com.capitalone.dashboard.auth.AuthenticationUtil;
+import com.capitalone.dashboard.model.Application;
+import com.capitalone.dashboard.model.Component;
+import com.capitalone.dashboard.model.Dashboard;
+import com.capitalone.dashboard.model.DashboardType;
+import com.capitalone.dashboard.model.Owner;
+import com.capitalone.dashboard.model.ScoreDisplayType;
+import com.google.common.collect.Lists;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+import java.util.List;
+
+<span class="fc" id="L17">public class DashboardRequest extends BaseRequest {</span>
+    @NotNull
+    @Size(min=1, message=&quot;Please select a template&quot;)
+    private String template;
+
+    @Valid
+    @NotNull
+    private DashboardRequestTitle dashboardRequestTitle;
+
+    private String applicationName;
+
+    private String componentName;
+
+    private String configurationItemBusServName;
+
+    private String configurationItemBusAppName;
+
+    //Enable/Disable scoring for the dashboard
+    //Disabled by default. It can be enabled when dashboard type is Team
+<span class="fc" id="L36">    private boolean scoreEnabled = false;</span>
+
+    //Display position for score.
+    private String scoreDisplay;
+
+    @NotNull
+    @Size(min=1, message=&quot;Please select a type&quot;)
+    private String type;
+
+    private List&lt;String&gt; activeWidgets;
+
+    public String getTemplate() {
+<span class="fc" id="L48">        return template;</span>
+    }
+
+    public void setTemplate(String template) {
+<span class="fc" id="L52">        this.template = template;</span>
+<span class="fc" id="L53">    }</span>
+
+	public DashboardRequestTitle getDashboardRequestTitle() {
+<span class="fc" id="L56">		return dashboardRequestTitle;</span>
+	}
+
+	public void setDashboardRequestTitle(DashboardRequestTitle dashboardRequestTitle) {
+<span class="fc" id="L60">		this.dashboardRequestTitle = dashboardRequestTitle;</span>
+<span class="fc" id="L61">	}</span>
+
+	public void setTitle(String title) {
+<span class="fc" id="L64">		DashboardRequestTitle dashboardRequestTitle = new DashboardRequestTitle();</span>
+<span class="fc" id="L65">		dashboardRequestTitle.setTitle(title);</span>
+<span class="fc" id="L66">		this.dashboardRequestTitle = dashboardRequestTitle;</span>
+<span class="fc" id="L67">	}</span>
+
+    public String getApplicationName() {
+<span class="fc" id="L70">        return applicationName;</span>
+    }
+
+    public void setApplicationName(String applicationName) {
+<span class="fc" id="L74">        this.applicationName = applicationName;</span>
+<span class="fc" id="L75">    }</span>
+
+    public String getComponentName() {
+<span class="fc" id="L78">        return componentName;</span>
+    }
+
+    public void setComponentName(String componentName) {
+<span class="fc" id="L82">        this.componentName = componentName;</span>
+<span class="fc" id="L83">    }</span>
+
+<span class="fc" id="L85">    public String getType() { return type; }</span>
+
+<span class="fc" id="L87">    public void setType(String type) { this.type = type; }</span>
+
+    public String getConfigurationItemBusServName() {
+<span class="fc" id="L90">        return configurationItemBusServName;</span>
+    }
+
+    public void setConfigurationItemBusServName(String configurationItemBusServName) {
+<span class="fc" id="L94">        this.configurationItemBusServName = configurationItemBusServName;</span>
+<span class="fc" id="L95">    }</span>
+
+    public String getConfigurationItemBusAppName() {
+<span class="fc" id="L98">        return configurationItemBusAppName;</span>
+    }
+
+    public void setConfigurationItemBusAppName(String configurationItemBusAppName) {
+<span class="fc" id="L102">        this.configurationItemBusAppName = configurationItemBusAppName;</span>
+<span class="fc" id="L103">    }</span>
+
+    public List&lt;String&gt; getActiveWidgets() {
+<span class="fc" id="L106">        return activeWidgets;</span>
+    }
+
+    public void setActiveWidgets(List&lt;String&gt; activeWidgets) {
+<span class="nc" id="L110">        this.activeWidgets = activeWidgets;</span>
+<span class="nc" id="L111">    }</span>
+
+    public boolean isScoreEnabled() {
+<span class="fc" id="L114">        return scoreEnabled;</span>
+    }
+
+    public void setScoreEnabled(boolean scoreEnabled) {
+<span class="fc" id="L118">        this.scoreEnabled = scoreEnabled;</span>
+<span class="fc" id="L119">    }</span>
+
+    public String getScoreDisplay() {
+<span class="fc" id="L122">        return scoreDisplay;</span>
+    }
+
+    public void setScoreDisplay(String scoreDisplay) {
+<span class="nc" id="L126">        this.scoreDisplay = scoreDisplay;</span>
+<span class="nc" id="L127">    }</span>
+
+    public Dashboard toDashboard() {
+<span class="fc" id="L130">        DashboardType type = DashboardType.fromString(this.type);</span>
+<span class="fc" id="L131">        Application application = new Application(applicationName, new Component(componentName));</span>
+<span class="fc" id="L132">        Owner owner = new Owner(AuthenticationUtil.getUsernameFromContext(), AuthenticationUtil.getAuthTypeFromContext());</span>
+<span class="fc" id="L133">        List&lt;Owner&gt; owners = Lists.newArrayList();</span>
+<span class="fc" id="L134">        owners.add(owner);</span>
+<span class="fc" id="L135">        return new Dashboard(</span>
+          template,
+<span class="fc" id="L137">          dashboardRequestTitle.getTitle(),</span>
+          application,
+          owners,
+          type ,
+          configurationItemBusServName,
+          configurationItemBusAppName,
+          activeWidgets,
+          scoreEnabled,
+<span class="fc" id="L145">          ScoreDisplayType.fromString(scoreDisplay)</span>
+        );
+
+
+    }
+
+    public Dashboard copyTo(Dashboard dashboard) {
+<span class="fc" id="L152">        Dashboard updated = toDashboard();</span>
+<span class="fc" id="L153">        updated.setId(dashboard.getId());</span>
+<span class="fc" id="L154">        return updated;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.3.201901230119</span></div></body></html>

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DashboardRemoteController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.capitalone.dashboard:api</a> &gt; <a href="index.source.html" class="el_package">com.capitalone.dashboard.rest</a> &gt; <span class="el_source">DashboardRemoteController.java</span></div><h1>DashboardRemoteController.java</h1><pre class="source lang-java linenums">
+package com.capitalone.dashboard.rest;
+
+import com.capitalone.dashboard.model.Dashboard;
+import com.capitalone.dashboard.request.DashboardRemoteRequest;
+import com.capitalone.dashboard.service.DashboardRemoteService;
+import com.capitalone.dashboard.util.CommonConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
+
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+import static org.springframework.web.bind.annotation.RequestMethod.POST;
+
+@RestController
+public class DashboardRemoteController {
+
+<span class="fc" id="L26">    private static final Logger LOGGER = LoggerFactory.getLogger(DashboardRemoteController.class);</span>
+
+    private final HttpServletRequest httpServletRequest;
+    private final DashboardRemoteService dashboardRemoteService;
+
+
+    @Autowired
+<span class="fc" id="L33">    public DashboardRemoteController(HttpServletRequest httpServletRequest, DashboardRemoteService dashboardRemoteService) {</span>
+<span class="fc" id="L34">        this.httpServletRequest = httpServletRequest;</span>
+<span class="fc" id="L35">        this.dashboardRemoteService = dashboardRemoteService;</span>
+<span class="fc" id="L36">    }</span>
+
+    @RequestMapping(value = &quot;/dashboard/remoteCreate&quot;, method = POST,
+            consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
+    public ResponseEntity&lt;String&gt; remoteCreateDashboard(@Valid @RequestBody DashboardRemoteRequest request) {
+<span class="fc" id="L41">        String correlation_id = httpServletRequest.getHeader(CommonConstants.HEADER_CLIENT_CORRELATION_ID);</span>
+<span class="fc" id="L42">        String requester = httpServletRequest.getHeader(CommonConstants.HEADER_API_USER);</span>
+<span class="fc" id="L43">        request.setClientReference(correlation_id);</span>
+        try {
+
+<span class="fc" id="L46">            Dashboard dashboard = dashboardRemoteService.remoteCreate(request, false);</span>
+<span class="fc" id="L47">            final String response_message = &quot;Successfully created dashboard: id =&quot; + dashboard.getId();</span>
+<span class="fc" id="L48">            LOGGER.info(&quot;correlation_id=&quot;+correlation_id +&quot;, application=hygieia, ba=&quot;+dashboard.getConfigurationItemBusServName()+</span>
+<span class="fc" id="L49">                    &quot;, component=&quot;+dashboard.getConfigurationItemBusAppName()+&quot;, service=api, uri=&quot; + httpServletRequest.getRequestURI()+&quot;, requester=&quot;+requester+</span>
+<span class="fc" id="L50">                    &quot;, response_status=success, response_code=&quot; +HttpStatus.CREATED.value()+&quot;, response_status_message=&quot;+response_message);</span>
+<span class="fc" id="L51">            return ResponseEntity</span>
+<span class="fc" id="L52">                    .status(HttpStatus.CREATED)</span>
+<span class="fc" id="L53">                    .body(response_message);</span>
+<span class="nc" id="L54">        } catch (Exception he) {</span>
+<span class="nc" id="L55">            final String response_message = &quot;Failed to create dashboard. Error: &quot; + he.getMessage();</span>
+<span class="nc" id="L56">            LOGGER.info(&quot;correlation_id=&quot;+correlation_id +&quot;, application=hygieia, ba=&quot;+request.getMetaData().getBusinessService() +</span>
+<span class="nc" id="L57">                    &quot;, component=&quot;+request.getMetaData().getBusinessApplication()+&quot;, service=api, uri=&quot; + httpServletRequest.getRequestURI() + &quot;, requester=&quot;+requester+</span>
+<span class="nc" id="L58">                    &quot;, response_status=failed, response_code=&quot; +HttpStatus.BAD_REQUEST.value()+&quot;, response_status_message=&quot;+response_message);</span>
+<span class="nc" id="L59">            LOGGER.error(&quot;RemoteCreate receives exception&quot;, he);</span>
+<span class="nc" id="L60">            return ResponseEntity</span>
+<span class="nc" id="L61">                    .status(HttpStatus.BAD_REQUEST)</span>
+<span class="nc" id="L62">                    .body(response_message);</span>
+        }
+    }
+
+    @RequestMapping(value = &quot;/dashboard/remoteUpdate&quot;, method = POST,
+            consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
+    public ResponseEntity&lt;String&gt; remoteUpdateDashboard(@Valid @RequestBody DashboardRemoteRequest request) {
+        try {
+<span class="fc" id="L70">            Dashboard dashboard = dashboardRemoteService.remoteCreate(request, true);</span>
+<span class="fc" id="L71">            return ResponseEntity</span>
+<span class="fc" id="L72">                    .status(HttpStatus.CREATED)</span>
+<span class="fc" id="L73">                    .body(&quot;Successfully updated dashboard: id =&quot; + dashboard.getId());</span>
+<span class="nc" id="L74">        } catch (Exception he) {</span>
+<span class="nc" id="L75">            LOGGER.error(&quot;RemoteUpdate receives exception&quot;, he);</span>
+<span class="nc" id="L76">            return ResponseEntity</span>
+<span class="nc" id="L77">                    .status(HttpStatus.BAD_REQUEST)</span>
+<span class="nc" id="L78">                    .body(&quot;Failed to update dashboard. Error: &quot; + he.getMessage());</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.3.201901230119</span></div></body></html>

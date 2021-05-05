@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CodeQualityController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.capitalone.dashboard:api</a> &gt; <a href="index.source.html" class="el_package">com.capitalone.dashboard.rest</a> &gt; <span class="el_source">CodeQualityController.java</span></div><h1>CodeQualityController.java</h1><pre class="source lang-java linenums">package com.capitalone.dashboard.rest;
+
+import com.capitalone.dashboard.editors.CaseInsensitiveCodeQualityTypeEditor;
+import com.capitalone.dashboard.misc.HygieiaException;
+import com.capitalone.dashboard.model.CodeQuality;
+import com.capitalone.dashboard.model.CodeQualityType;
+import com.capitalone.dashboard.model.DataResponse;
+import com.capitalone.dashboard.request.CodeQualityCreateRequest;
+import com.capitalone.dashboard.request.CodeQualityRequest;
+import com.capitalone.dashboard.service.CodeQualityService;
+import com.capitalone.dashboard.util.CommonConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
+
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+import static org.springframework.web.bind.annotation.RequestMethod.GET;
+import static org.springframework.web.bind.annotation.RequestMethod.POST;
+
+@RestController
+public class CodeQualityController {
+
+    private final HttpServletRequest httpServletRequest;
+    private final CodeQualityService codeQualityService;
+
+<span class="fc" id="L36">    private static final Logger LOGGER = LoggerFactory.getLogger(CodeQualityController.class);</span>
+
+    @Autowired
+<span class="fc" id="L39">    public CodeQualityController(HttpServletRequest httpServletRequest, CodeQualityService codeQualityService) {</span>
+<span class="fc" id="L40">        this.httpServletRequest = httpServletRequest;</span>
+<span class="fc" id="L41">        this.codeQualityService = codeQualityService;</span>
+<span class="fc" id="L42">    }</span>
+
+    @InitBinder
+    public void initBinder(WebDataBinder binder) {
+<span class="fc" id="L46">        binder.registerCustomEditor(CodeQualityType.class, new CaseInsensitiveCodeQualityTypeEditor());</span>
+<span class="fc" id="L47">    }</span>
+
+    @RequestMapping(value = &quot;/quality&quot;, method = GET, produces = APPLICATION_JSON_VALUE)
+    public DataResponse&lt;Iterable&lt;CodeQuality&gt;&gt; qualityData(@Valid CodeQualityRequest request) {
+<span class="nc" id="L51">        return codeQualityService.search(request);</span>
+    }
+
+    @RequestMapping(value = &quot;/quality/static-analysis&quot;, method = GET, produces = APPLICATION_JSON_VALUE)
+    public DataResponse&lt;Iterable&lt;CodeQuality&gt;&gt; qualityStaticAnalysis(@Valid CodeQualityRequest request) {
+<span class="fc" id="L56">        request.setType(CodeQualityType.StaticAnalysis);</span>
+<span class="fc" id="L57">        return codeQualityService.search(request);</span>
+    }
+
+    @RequestMapping(value = &quot;/quality/static-analysis&quot;, method = POST,
+            consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
+    public ResponseEntity&lt;String&gt; createStaticAnanlysis(@Valid @RequestBody CodeQualityCreateRequest request) throws HygieiaException {
+<span class="fc" id="L63">        String response = codeQualityService.create(request);</span>
+<span class="fc" id="L64">        return ResponseEntity</span>
+<span class="fc" id="L65">                .status(HttpStatus.CREATED)</span>
+<span class="fc" id="L66">                .body(response);</span>
+    }
+
+    @RequestMapping(value = &quot;/v2/quality/static-analysis&quot;, method = POST,
+            consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
+    public ResponseEntity&lt;String&gt; createStaticAnalysisV2(@Valid @RequestBody CodeQualityCreateRequest request) throws HygieiaException {
+<span class="fc" id="L72">        request.setClientReference(httpServletRequest.getHeader(CommonConstants.HEADER_CLIENT_CORRELATION_ID));</span>
+<span class="fc" id="L73">        String requester = httpServletRequest.getHeader(CommonConstants.HEADER_API_USER);</span>
+<span class="fc" id="L74">        String response = codeQualityService.createV2(request);</span>
+<span class="fc" id="L75">        StringBuilder log = new StringBuilder();</span>
+<span class="fc" id="L76">        log.append(&quot;correlation_id=&quot; + request.getClientReference() + &quot;, application=hygieia, service=api, uri=&quot; + httpServletRequest.getRequestURI());</span>
+<span class="fc" id="L77">        log.append( &quot;, requester=&quot; + requester + &quot;, response_status=success, response_code=&quot; +HttpStatus.CREATED.value());</span>
+<span class="fc" id="L78">        log.append( &quot;, response_status_message=&quot; + response + &quot;, build_url=&quot; + request.getBuildUrl());</span>
+<span class="fc" id="L79">        log.append( &quot;, code_quality_type=&quot;+request.getType().toString() + &quot;, code_quality_project_id=&quot; + request.getProjectId());</span>
+<span class="fc" id="L80">        log.append( &quot;, code_quality_project_name=&quot;+request.getProjectName() + &quot;, code_quality_project_version=&quot; + request.getProjectVersion());</span>
+<span class="fc" id="L81">        log.append( &quot;, code_quality_nicename=&quot; + request.getNiceName() + &quot;, code_quality_tool=&quot; + request.getToolName());</span>
+<span class="fc" id="L82">        log.append( &quot;, code_quality_project_url=&quot; + request.getProjectUrl() + &quot;, code_quality_server=&quot; + request.getServerUrl());</span>
+<span class="fc" id="L83">        LOGGER.info(log.toString());</span>
+<span class="fc" id="L84">        return ResponseEntity</span>
+<span class="fc" id="L85">                .status(HttpStatus.CREATED)</span>
+<span class="fc" id="L86">                .body(response);</span>
+    }
+
+    @RequestMapping(value = &quot;/quality/security-analysis&quot;, method = GET, produces = APPLICATION_JSON_VALUE)
+    public DataResponse&lt;Iterable&lt;CodeQuality&gt;&gt; qualitySecurityAnalysis(@Valid CodeQualityRequest request) {
+<span class="fc" id="L91">        request.setType(CodeQualityType.SecurityAnalysis);</span>
+<span class="fc" id="L92">        return codeQualityService.search(request);</span>
+    }
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.3.201901230119</span></div></body></html>

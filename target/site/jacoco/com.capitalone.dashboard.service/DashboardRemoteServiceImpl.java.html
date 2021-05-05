@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DashboardRemoteServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">com.capitalone.dashboard:api</a> &gt; <a href="index.source.html" class="el_package">com.capitalone.dashboard.service</a> &gt; <span class="el_source">DashboardRemoteServiceImpl.java</span></div><h1>DashboardRemoteServiceImpl.java</h1><pre class="source lang-java linenums">package com.capitalone.dashboard.service;
+
+import com.capitalone.dashboard.misc.HygieiaException;
+import com.capitalone.dashboard.model.Application;
+import com.capitalone.dashboard.model.Cmdb;
+import com.capitalone.dashboard.model.Collector;
+import com.capitalone.dashboard.model.CollectorItem;
+import com.capitalone.dashboard.model.CollectorType;
+import com.capitalone.dashboard.model.Component;
+import com.capitalone.dashboard.model.Dashboard;
+import com.capitalone.dashboard.model.DashboardType;
+import com.capitalone.dashboard.model.Owner;
+import com.capitalone.dashboard.model.ScoreDisplayType;
+import com.capitalone.dashboard.model.Widget;
+import com.capitalone.dashboard.repository.CmdbRepository;
+import com.capitalone.dashboard.repository.CollectorItemRepository;
+import com.capitalone.dashboard.repository.CollectorRepository;
+import com.capitalone.dashboard.repository.ComponentRepository;
+import com.capitalone.dashboard.repository.CustomRepositoryQuery;
+import com.capitalone.dashboard.repository.DashboardRepository;
+import com.capitalone.dashboard.request.DashboardRemoteRequest;
+import com.capitalone.dashboard.request.WidgetRequest;
+import com.capitalone.dashboard.settings.ApiSettings;
+import com.google.common.collect.Lists;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.bson.types.ObjectId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+@Service
+public class DashboardRemoteServiceImpl implements DashboardRemoteService {
+<span class="fc" id="L42">    private static final Logger LOG = LoggerFactory.getLogger(DashboardRemoteServiceImpl.class);</span>
+    private final CollectorRepository collectorRepository;
+    private final CustomRepositoryQuery customRepositoryQuery;
+    private final DashboardRepository dashboardRepository;
+    private final DashboardService dashboardService;
+    private final CollectorService collectorService;
+    private final UserInfoService userInfoService;
+    private final CmdbRepository cmdbRepository;
+    private final ComponentRepository componentRepository;
+    private final CollectorItemRepository collectorItemRepository;
+    private final ApiSettings apiSettings;
+    private final EncryptionService encryptionService;
+
+    public static final String PASSWORD_OPTION = &quot;password&quot;;
+    public static final String PERSONAL_ACCESS_TOKEN_OPTION = &quot;personalAccessToken&quot;;
+
+
+    @Autowired
+    public DashboardRemoteServiceImpl(
+            CollectorRepository collectorRepository,
+            CustomRepositoryQuery customRepositoryQuery,
+            DashboardRepository dashboardRepository, DashboardService dashboardService, CollectorService collectorService,
+            UserInfoService userInfoService, CmdbRepository cmdbRepository, ComponentRepository componentRepository,
+<span class="fc" id="L65">            CollectorItemRepository collectorItemRepository, ApiSettings apiSettings, EncryptionService encryptionService) {</span>
+<span class="fc" id="L66">        this.collectorRepository = collectorRepository;</span>
+<span class="fc" id="L67">        this.customRepositoryQuery = customRepositoryQuery;</span>
+<span class="fc" id="L68">        this.dashboardRepository = dashboardRepository;</span>
+<span class="fc" id="L69">        this.dashboardService = dashboardService;</span>
+<span class="fc" id="L70">        this.collectorService = collectorService;</span>
+<span class="fc" id="L71">        this.userInfoService = userInfoService;</span>
+<span class="fc" id="L72">        this.cmdbRepository = cmdbRepository;</span>
+<span class="fc" id="L73">        this.componentRepository = componentRepository;</span>
+<span class="fc" id="L74">        this.collectorItemRepository = collectorItemRepository;</span>
+<span class="fc" id="L75">        this.apiSettings = apiSettings;</span>
+<span class="fc" id="L76">        this.encryptionService = encryptionService;</span>
+<span class="fc" id="L77">    }</span>
+
+    /**
+     * Creates a list of unique owners from the owner and owners requests
+     * @param request
+     * @return List&lt;Owner&gt; list of owners to be added to the dashboard
+     * @throws HygieiaException
+     */
+    private List&lt;Owner&gt; getOwners(DashboardRemoteRequest request) throws HygieiaException {
+<span class="fc" id="L86">        DashboardRemoteRequest.DashboardMetaData metaData = request.getMetaData();</span>
+<span class="fc" id="L87">        Owner owner = metaData.getOwner();</span>
+<span class="fc" id="L88">        List&lt;Owner&gt; owners = metaData.getOwners();</span>
+
+<span class="pc bpc" id="L90" title="3 of 4 branches missed.">        if (owner == null &amp;&amp; CollectionUtils.isEmpty(owners)) {</span>
+<span class="nc" id="L91">            throw new HygieiaException(&quot;There are no owner/owners field in the request&quot;, HygieiaException.INVALID_CONFIGURATION);</span>
+        }
+
+<span class="pc bpc" id="L94" title="1 of 2 branches missed.">        if (owners == null) {</span>
+<span class="nc" id="L95">            owners = new ArrayList&lt;Owner&gt;();</span>
+<span class="nc" id="L96">            owners.add(owner);</span>
+<span class="pc bpc" id="L97" title="1 of 2 branches missed.">        } else if (owner != null) {</span>
+<span class="fc" id="L98">            owners.add(owner);</span>
+        }
+
+<span class="fc" id="L101">        Set&lt;Owner&gt; uniqueOwners = new HashSet&lt;Owner&gt;(owners);</span>
+<span class="fc" id="L102">        return new ArrayList&lt;Owner&gt;(uniqueOwners);</span>
+    }
+
+    @Override
+    public Dashboard remoteCreate(DashboardRemoteRequest request, boolean isUpdate) throws HygieiaException {
+<span class="fc" id="L107">        final String METHOD_NAME = &quot;DashboardRemoteServiceImpl.remoteCreate&quot;;</span>
+        Dashboard dashboard;
+<span class="fc" id="L109">        Map&lt;String, Widget&gt; existingWidgets = new HashMap&lt;&gt;();</span>
+
+<span class="fc" id="L111">        List&lt;Owner&gt; owners = getOwners(request);</span>
+<span class="fc" id="L112">        List&lt;Owner&gt; validOwners = Lists.newArrayList();</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">        for (Owner owner : owners) {</span>
+<span class="fc bfc" id="L114" title="All 2 branches covered.">            if (userInfoService.isUserValid(owner.getUsername(), owner.getAuthType())) {</span>
+<span class="fc" id="L115">                validOwners.add(owner);</span>
+            } else {
+<span class="fc" id="L117">                LOG.warn(&quot; correlation_id=&quot; + request.getClientReference() + &quot; Invalid owner passed in the request dashboard_invalid_owner=&quot; + owner.getUsername());</span>
+            }
+<span class="fc" id="L119">        }</span>
+
+<span class="fc bfc" id="L121" title="All 2 branches covered.">        if (validOwners.isEmpty()) {</span>
+<span class="fc" id="L122">            throw new HygieiaException(&quot;There are no valid owner/owners in the request&quot;, HygieiaException.INVALID_CONFIGURATION);</span>
+        }
+
+        // if true password or personalAccessToken in SCM widgets needs to be encrypted
+<span class="pc bpc" id="L126" title="1 of 2 branches missed.">        if(apiSettings.isEncryptRemoteCreatePayload()) {</span>
+<span class="fc" id="L127">            encryptSCMWidgets(request);</span>
+        }
+
+<span class="fc" id="L130">        List&lt;Dashboard&gt; dashboards = findExistingDashboardsFromRequest( request );</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">        if (!CollectionUtils.isEmpty(dashboards)) {</span>
+<span class="pc bpc" id="L132" title="1 of 2 branches missed.">            if (dashboards.size()==1) {</span>
+<span class="fc" id="L133">                dashboard = dashboards.get(0);</span>
+            } else {
+<span class="nc" id="L135">                dashboard = chooseDashboard(dashboards, request);</span>
+            }
+<span class="fc" id="L137">            Set&lt;Owner&gt; uniqueOwners = new HashSet&lt;Owner&gt;(validOwners);</span>
+<span class="fc" id="L138">            uniqueOwners.addAll(dashboard.getOwners());</span>
+<span class="fc" id="L139">            dashboard.setOwners(new ArrayList&lt;Owner&gt;(uniqueOwners));</span>
+<span class="fc" id="L140">            dashboard.setConfigurationItemBusAppName(request.getMetaData().getBusinessApplication());</span>
+<span class="fc" id="L141">            dashboard.setConfigurationItemBusServName(request.getMetaData().getBusinessService());</span>
+<span class="fc" id="L142">            dashboard.setClientReference(request.getClientReference());</span>
+//            if (!isUpdate) {
+//                throw new HygieiaException(&quot;Dashboard &quot; + dashboard.getTitle() + &quot; (id =&quot; + dashboard.getId() + &quot;) already exists&quot;, HygieiaException.DUPLICATE_DATA);
+//            }
+<span class="fc" id="L146">            dashboardService.update(dashboard);</span>
+            //Save the widgets
+<span class="fc bfc" id="L148" title="All 2 branches covered.">            for (Widget w : dashboard.getWidgets()) {</span>
+<span class="fc" id="L149">                existingWidgets.put(w.getName(), w);</span>
+<span class="fc" id="L150">            }</span>
+
+<span class="fc" id="L152">        } else {</span>
+<span class="fc bfc" id="L153" title="All 2 branches covered.">            if (isUpdate) {</span>
+<span class="fc" id="L154">                throw new HygieiaException(&quot;Dashboard &quot; + request.getMetaData().getTitle() +  &quot; does not exist.&quot;, HygieiaException.BAD_DATA);</span>
+            }
+<span class="fc" id="L156">            request.getMetaData().setOwners(validOwners);</span>
+<span class="fc" id="L157">            dashboard = dashboardService.create(requestToDashboard(request));</span>
+        }
+
+<span class="fc" id="L160">        Set&lt;CollectorType&gt; incomingTypes = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L161">        List&lt;DashboardRemoteRequest.Entry&gt; entries = request.getAllEntries();</span>
+<span class="fc" id="L162">        Map&lt;String, WidgetRequest&gt; allWidgetRequests = generateRequestWidgetList( entries, dashboard, incomingTypes);</span>
+<span class="fc" id="L163">        Component component = componentRepository.findOne(dashboard.getApplication().getComponents().get(0).getId());</span>
+<span class="fc" id="L164">        Set&lt;CollectorType&gt; existingTypes = new HashSet&lt;&gt;(component.getCollectorItems().keySet());</span>
+
+        //adds widgets
+<span class="fc bfc" id="L167" title="All 2 branches covered.">        for (String key : allWidgetRequests.keySet()) {</span>
+<span class="fc" id="L168">            WidgetRequest widgetRequest = allWidgetRequests.get(key);</span>
+
+<span class="fc" id="L170">            component = dashboardService.associateCollectorToComponent(dashboard.getApplication().getComponents().get(0).getId(), widgetRequest.getCollectorItemIds(),component,true);</span>
+<span class="fc" id="L171">            Widget newWidget = widgetRequest.widget();</span>
+<span class="fc bfc" id="L172" title="All 2 branches covered.">            if (isUpdate) {</span>
+<span class="fc" id="L173">                Widget oldWidget = existingWidgets.get(newWidget.getName());</span>
+<span class="fc bfc" id="L174" title="All 2 branches covered.">                if (oldWidget == null) {</span>
+<span class="fc" id="L175">                    dashboardService.addWidget(dashboard, newWidget);</span>
+                } else {
+<span class="fc" id="L177">                    Widget widget = widgetRequest.updateWidget(dashboardService.getWidget(dashboard, oldWidget.getId()));</span>
+<span class="fc" id="L178">                    dashboardService.updateWidget(dashboard, widget);</span>
+                }
+<span class="fc" id="L180">            } else {</span>
+<span class="fc" id="L181">                dashboardService.addWidget(dashboard, newWidget);</span>
+            }
+<span class="fc" id="L183">        }</span>
+
+        // Delete collector item types that are not in the incoming types
+<span class="fc" id="L186">        Set&lt;CollectorType&gt; deleteSet = new HashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">        for (CollectorType existingType : existingTypes) {</span>
+<span class="pc bpc" id="L188" title="1 of 2 branches missed.">            if (existingType==CollectorType.Audit) continue;    // Audit is used by NFRR, not present in incoming types</span>
+<span class="pc bpc" id="L189" title="1 of 2 branches missed.">            if (existingType==CollectorType.Artifact) continue; // right now we cannot fully trust BladeRunner on this,</span>
+                                                                // as they do not have the parsing logic implemented
+<span class="fc bfc" id="L191" title="All 2 branches covered.">            if (!incomingTypes.contains(existingType)) {</span>
+<span class="fc" id="L192">                deleteSet.add(existingType);</span>
+<span class="fc" id="L193">                component.getCollectorItems().remove(existingType);</span>
+            }
+<span class="fc" id="L195">        }</span>
+
+        // Delete widgets that do not have collector items, except the quality widget (which may have more than one type)
+<span class="fc bfc" id="L198" title="All 2 branches covered.">        for (CollectorType type: deleteSet) {</span>
+<span class="fc bfc" id="L199" title="All 2 branches covered.">            if (!DashboardServiceImpl.QualityWidget.contains(type)) {</span>
+<span class="fc" id="L200">                dashboardService.deleteWidget(dashboard,type);</span>
+            }
+<span class="fc" id="L202">        }</span>
+        // delete code analysis widget if no collector item types is incoming
+<span class="fc bfc" id="L204" title="All 2 branches covered.">        if (incomingTypes.stream().noneMatch(DashboardServiceImpl.QualityWidget::contains)) {</span>
+<span class="fc" id="L205">            dashboardService.deleteWidget(dashboard,CollectorType.CodeQuality);</span>
+        }
+
+<span class="fc" id="L208">        LOG.info(&quot;correlation_id=&quot;+ request.getClientReference() + &quot;, dashboard_title=&quot; + dashboard.getTitle() + &quot;, existing_widget_types=&quot; + existingTypes.size() +</span>
+<span class="fc" id="L209">                &quot; &quot; + existingTypes + &quot;, incoming_widget_types=&quot; + incomingTypes.size() + &quot; &quot; + incomingTypes</span>
+<span class="fc" id="L210">                + &quot;, deleted_widgets_set=&quot; + deleteSet.size() + &quot; &quot; + deleteSet);</span>
+
+<span class="fc" id="L212">        componentRepository.save(component);</span>
+<span class="pc bpc" id="L213" title="1 of 2 branches missed.">        return (dashboard != null) ? dashboardService.get(dashboard.getId()) : null;</span>
+    }
+
+    private Dashboard chooseDashboard(List&lt;Dashboard&gt; dashboards, DashboardRemoteRequest request) {
+<span class="nc" id="L217">        Dashboard dashboard = null;</span>
+<span class="nc" id="L218">        String businessService = request.getMetaData().getBusinessService();</span>
+<span class="nc" id="L219">        String businessApplication = request.getMetaData().getBusinessApplication();</span>
+<span class="nc" id="L220">        String title = request.getMetaData().getTitle();</span>
+<span class="nc bnc" id="L221" title="All 2 branches missed.">        for (Dashboard one : dashboards) {</span>
+<span class="nc bnc" id="L222" title="All 2 branches missed.">            if (dashboard==null) {</span>
+<span class="nc" id="L223">                dashboard = one;</span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">            } else if (one.getUpdatedAt()&gt;dashboard.getUpdatedAt()) {</span>
+<span class="nc" id="L225">                dashboard = one;</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">            } else if (one.getUpdatedAt()==dashboard.getUpdatedAt()) {</span>
+<span class="nc bnc" id="L227" title="All 2 branches missed.">                if (one.getCreatedAt()&gt;dashboard.getCreatedAt()) {</span>
+<span class="nc" id="L228">                    dashboard = one;</span>
+                }
+            }
+<span class="nc" id="L231">        }</span>
+<span class="nc" id="L232">        LOG.warn(String.format(&quot;correlation_id=%s, count_dashboards=%d, ba=%s, component=%s, dashboard_title=%s, selected_dashboard_id=%s&quot;,</span>
+<span class="nc" id="L233">                request.getClientReference(), dashboards.size(), businessService, businessApplication, title, dashboard.getId()));</span>
+<span class="nc" id="L234">        return dashboard;</span>
+    }
+
+    /**
+     * Generates a Widget Request list of Widgets to be created from the request
+     * @param entries
+     * @param dashboard
+     * @return Map&lt; String, WidgetRequest &gt; list of Widgets to be created
+     * @throws HygieiaException
+     */
+    private  Map &lt; String, WidgetRequest &gt; generateRequestWidgetList( List &lt; DashboardRemoteRequest.Entry &gt; entries, Dashboard dashboard, Set&lt;CollectorType&gt; incomingTypes) throws HygieiaException {
+<span class="fc" id="L245">        Map&lt; String, WidgetRequest &gt; allWidgetRequests = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L246">        List&lt; Collector &gt; collectors = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L247">        Collector collector = null;</span>
+        //builds widgets
+<span class="fc bfc" id="L249" title="All 2 branches covered.">        for ( DashboardRemoteRequest.Entry entry : entries ) {</span>
+            // get collector from database
+<span class="fc bfc" id="L251" title="All 4 branches covered.">            if( collector == null || collector.getCollectorType() != entry.getType() ||</span>
+<span class="pc bpc" id="L252" title="1 of 2 branches missed.">                    !StringUtils.equalsIgnoreCase(collector.getName(), entry.getToolName()) ) {</span>
+<span class="fc" id="L253">                collectors = collectorRepository.findByCollectorTypeAndName( entry.getType(), entry.getToolName() );</span>
+<span class="fc bfc" id="L254" title="All 2 branches covered.">                if ( CollectionUtils.isEmpty( collectors ) ) {</span>
+<span class="fc" id="L255">                    throw new HygieiaException( entry.getToolName() + &quot; collector is not available.&quot;, HygieiaException.BAD_DATA );</span>
+                }
+<span class="fc" id="L257">                collector = collectors.get( 0 );</span>
+<span class="fc" id="L258">                incomingTypes.add(collector.getCollectorType());</span>
+            }
+
+<span class="fc" id="L261">            WidgetRequest widgetRequest = allWidgetRequests.get( entry.getWidgetName() );</span>
+<span class="fc bfc" id="L262" title="All 2 branches covered.">            if ( widgetRequest == null ) {</span>
+<span class="fc" id="L263">                widgetRequest = entryToWidgetRequest( dashboard, entry, collector) ;</span>
+<span class="fc" id="L264">                allWidgetRequests.put( entry.getWidgetName(), widgetRequest );</span>
+            } else {
+<span class="fc" id="L266">                CollectorItem item = entryToCollectorItem( entry, collector );</span>
+<span class="pc bpc" id="L267" title="1 of 2 branches missed.">                if ( item != null ) {</span>
+<span class="fc" id="L268">                    widgetRequest.getCollectorItemIds().add( item.getId() );</span>
+                }
+            }
+<span class="fc" id="L271">        }</span>
+<span class="fc" id="L272">        return allWidgetRequests;</span>
+    }
+    /**
+     * Takes a DashboardRemoteRequest. If the request contains a Business Service and Business Application then returns dashboard. Otherwise,
+     * Checks dashboards for existing Title and returns dashboards.
+     * @param request
+     * @return  List&lt; Dashboard &gt;
+     */
+    private List&lt; Dashboard &gt; findExistingDashboardsFromRequest( DashboardRemoteRequest request ) {
+<span class="fc" id="L281">        String businessService = request.getMetaData().getBusinessService();</span>
+<span class="fc" id="L282">        String businessApplication = request.getMetaData().getBusinessApplication();</span>
+<span class="fc" id="L283">        String title = request.getMetaData().getTitle();</span>
+<span class="fc" id="L284">        List&lt;Dashboard&gt; existing = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L285" title="All 4 branches covered.">        if( !StringUtils.isEmpty( businessService ) &amp;&amp; !StringUtils.isEmpty( businessApplication ) ){</span>
+<span class="fc" id="L286">           existing.addAll(dashboardRepository.findAllByConfigurationItemBusServNameContainingIgnoreCaseAndConfigurationItemBusAppNameContainingIgnoreCase( businessService, businessApplication ));</span>
+<span class="pc bpc" id="L287" title="2 of 4 branches missed.">        } if (CollectionUtils.isEmpty(existing) &amp;&amp; StringUtils.isNotEmpty(title)) {</span>
+<span class="fc" id="L288">           existing.addAll(dashboardRepository.findByTitle( request.getMetaData().getTitle() ));</span>
+        }
+<span class="fc" id="L290">        return existing;</span>
+    }
+
+
+    private CollectorItem entryToCollectorItem(DashboardRemoteRequest.Entry entry, Collector collector) throws HygieiaException {
+<span class="fc" id="L295">        CollectorItem item = entry.toCollectorItem(collector);</span>
+<span class="fc" id="L296">        item.setCollectorId(collector.getId());</span>
+<span class="fc" id="L297">        return collectorService.createCollectorItemSelectOptions(item, collector, collector.getAllFields(), item.getOptions());</span>
+    }
+
+    /**
+     * Creates a widget from entry
+     * @param dashboard
+     * @param entry
+     * @return WidgetRequest
+     */
+    private WidgetRequest entryToWidgetRequest(Dashboard dashboard, DashboardRemoteRequest.Entry entry, Collector collector) throws HygieiaException {
+<span class="fc" id="L307">        WidgetRequest request = new WidgetRequest();</span>
+<span class="fc" id="L308">        CollectorItem item = entryToCollectorItem(entry, collector);</span>
+<span class="pc bpc" id="L309" title="1 of 2 branches missed.">        if (item != null) {</span>
+<span class="fc" id="L310">            request.setName(entry.getWidgetName());</span>
+<span class="fc" id="L311">            request.setComponentId(dashboard.getApplication().getComponents().get(0).getId());</span>
+<span class="fc" id="L312">            request.setOptions(entry.toWidgetOptions());</span>
+<span class="fc" id="L313">            List&lt;ObjectId&gt; ids = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L314">            ids.add(item.getId());</span>
+<span class="fc" id="L315">            request.setCollectorItemIds(ids);</span>
+        }
+<span class="fc" id="L317">        return request;</span>
+    }
+
+
+
+    /**
+     * Creates a Dashboard object from the request.
+     * @param request
+     * @return Dashboard
+     * @throws HygieiaException
+     */
+    private Dashboard requestToDashboard(DashboardRemoteRequest request) throws HygieiaException {
+<span class="fc" id="L329">        DashboardRemoteRequest.DashboardMetaData metaData = request.getMetaData();</span>
+<span class="fc" id="L330">        Application application = new Application(metaData.getApplicationName(), new Component(metaData.getComponentName()));</span>
+<span class="fc" id="L331">        String appName = null;</span>
+<span class="fc" id="L332">        String serviceName = null;</span>
+<span class="fc bfc" id="L333" title="All 2 branches covered.">        if (!StringUtils.isEmpty(metaData.getBusinessApplication())) {</span>
+<span class="fc" id="L334">            Cmdb app = cmdbRepository.findByConfigurationItemAndItemType(metaData.getBusinessApplication(), &quot;component&quot;);</span>
+<span class="pc bpc" id="L335" title="1 of 2 branches missed.">            if (app == null) throw new HygieiaException(&quot;Invalid Business Application Name.&quot;, HygieiaException.BAD_DATA);</span>
+<span class="nc" id="L336">            appName = app.getConfigurationItem();</span>
+        }
+<span class="fc bfc" id="L338" title="All 2 branches covered.">        if (!StringUtils.isEmpty(metaData.getBusinessService())) {</span>
+<span class="fc" id="L339">            Cmdb service = cmdbRepository.findByConfigurationItemAndItemType(metaData.getBusinessService(), &quot;app&quot;);</span>
+<span class="pc bpc" id="L340" title="1 of 2 branches missed.">            if (service == null) throw new HygieiaException(&quot;Invalid Business Service Name.&quot;, HygieiaException.BAD_DATA);</span>
+<span class="nc" id="L341">            serviceName = service.getConfigurationItem();</span>
+        }
+<span class="fc" id="L343">        List&lt;String&gt; activeWidgets = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L344">        return new Dashboard(true, metaData.getTemplate(), metaData.getTitle(), application, metaData.getOwners(), DashboardType.fromString(metaData.getType()), serviceName, appName,activeWidgets, false, ScoreDisplayType.HEADER);</span>
+    }
+
+    private void encryptSCMWidgets (DashboardRemoteRequest request) {
+<span class="pc bpc" id="L348" title="1 of 2 branches missed.">        if(request == null) return;</span>
+<span class="fc bfc" id="L349" title="All 2 branches covered.">        if(CollectionUtils.isEmpty(request.getCodeRepoEntries())) return;</span>
+<span class="fc" id="L350">        List&lt;DashboardRemoteRequest.CodeRepoEntry&gt; scmEntries = request.getCodeRepoEntries();</span>
+
+<span class="fc bfc" id="L352" title="All 2 branches covered.">        for (DashboardRemoteRequest.CodeRepoEntry scmEntry : scmEntries) {</span>
+
+<span class="fc" id="L354">            String password = (String) scmEntry.getOptions().get(PASSWORD_OPTION);</span>
+<span class="fc" id="L355">            String accessToken = (String) scmEntry.getOptions().get(PERSONAL_ACCESS_TOKEN_OPTION);</span>
+<span class="pc bpc" id="L356" title="1 of 2 branches missed.">            if(StringUtils.isNotEmpty(password)) {</span>
+                //encrypt the password
+<span class="nc" id="L358">                scmEntry.getOptions().put(PASSWORD_OPTION, encryptionService.encrypt(password));</span>
+<span class="pc bpc" id="L359" title="1 of 2 branches missed.">            } else if (StringUtils.isNotEmpty(accessToken)) {</span>
+<span class="nc" id="L360">                scmEntry.getOptions().put(PERSONAL_ACCESS_TOKEN_OPTION, encryptionService.encrypt(accessToken));</span>
+            }
+<span class="fc" id="L362">        }</span>
+<span class="fc" id="L363">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.3.201901230119</span></div></body></html>
